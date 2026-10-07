@@ -1,0 +1,52 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- sentientmarkets-filter-eval/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: sentientmarkets-filter-eval
+plugins: platformdirs-4.12.3
+collecting ... collected 39 items
+tests/test_engine.py::test_cost_accounting_hand_example PASSED
+tests/test_engine.py::test_short_trade_and_mark_to_close_at_window_end PASSED
+tests/test_engine.py::test_consecutive_cohorts_in_same_name_net_their_costs PASSED
+tests/test_engine.py::test_csm_known_answer PASSED
+tests/test_engine.py::test_str_known_answer PASSED
+tests/test_engine.py::test_tsmom_known_answer_with_one_reversal PASSED
+tests/test_engine.py::test_brk_known_answer PASSED
+tests/test_engine.py::test_brk_ignores_signals_while_held PASSED
+tests/test_engine.py::test_rsi_mr_known_answer PASSED
+tests/test_engine.py::test_rsi_mr_time_stop PASSED
+tests/test_engine.py::test_decisions_use_closes_through_t_only[CSM] PASSED
+tests/test_engine.py::test_decisions_use_closes_through_t_only[STR] PASSED
+tests/test_engine.py::test_decisions_use_closes_through_t_only[TSMOM] PASSED
+tests/test_engine.py::test_decisions_use_closes_through_t_only[BRK] PASSED
+tests/test_engine.py::test_decisions_use_closes_through_t_only[RSI-MR] PASSED
+tests/test_engine.py::test_gate_size_veto_rules PASSED
+tests/test_engine.py::test_redistribute_within_group PASSED
+tests/test_engine.py::test_size_filter_matches_unfiltered_gross_each_day PASSED
+tests/test_engine.py::test_inference_helpers PASSED
+tests/test_engine.py::test_closed_cell_list PASSED
+tests/test_engine.py::test_null_random_states_give_centred_differences 
+null centring (no cost): mean diff +0.033, se 0.128, n=300
+PASSED
+tests/test_engine.py::test_null_random_states_give_uniform_pvalues 
+null p-values (10bp cost): KS vs U(0,1) p=0.796, share p<0.05 = 0.050, share p<0.10 = 0.080, mean diff with costs -0.092
+PASSED
+tests/test_engine.py::test_planted_effect_is_detected 
+planted effect: sharpe diff +20.70, p=0.0010, 95% CI [+17.76, +23.95], retention 0.52
+PASSED
+tests/test_engine.py::test_missing_states_are_skipped_counted_and_trigger_restricted_comparator PASSED
+tests/test_engine.py::test_ledger_is_append_only PASSED
+tests/test_ingest_panel.py::test_drop_after_lock_boundary PASSED
+tests/test_ingest_panel.py::test_assert_locked_raises_on_post_window_rows_and_dates PASSED
+tests/test_ingest_panel.py::test_pull_never_writes_post_window_rows PASSED
+tests/test_ingest_panel.py::test_loader_refuses_planted_post_window_file PASSED
+tests/test_ingest_panel.py::test_no_unlock_flag_exists PASSED
+tests/test_ingest_panel.py::test_pull_resumes_and_retries_failures PASSED
+tests/test_ingest_panel.py::test_state_uses_2130_slot_and_ignores_ticks_at_or_after_2145 PASSED
+tests/test_ingest_panel.py::test_tick_at_2145_cannot_affect_day_t_decision PASSED
+tests/test_ingest_panel.py::test_late_2130_tick_reason_and_no_tick_reason PASSED
+tests/test_ingest_panel.py::test_previous_day_tick_is_not_carried_forward PASSED
+tests/test_ingest_panel.py::test_nyse_holidays_are_not_sessions PASSED
+tests/test_ingest_panel.py::test_window_sessions_refuses_holdout_end PASSED
+tests/test_ingest_panel.py::test_reconstruct_exo_weights_and_redistribution PASSED
+tests/test_ingest_panel.py::test_divergence_and_bands PASSED
+============================== 39 passed in 8.14s ==============================

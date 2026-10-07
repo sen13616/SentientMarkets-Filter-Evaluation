@@ -1,3 +1,10 @@
+exchange_calendars==4.13.2
+numpy==2.5.3
 pandas==3.0.6
+pyarrow==25.0.1
+pytest==9.1.1
 python-dotenv==1.2.4
 requests==2.34.2
+scipy==1.18.1
+tabulate==0.10.0
+yfinance==1.7.0

@@ -1,0 +1,13 @@
+{
+ "sentiment_ticks_sha256": "6eb4f71e14a8610c2870397433505d7f54cfb98c308d1448da58eec9020e08c7",
+ "state_panel_sha256": "1be3214022074334835403f06be27d67a171f31219bf95b9f2b234fcc9a4afd4",
+ "prices_sha256": "badee479f07f374ee3fd5bcc84d1d5a012bed0a64161837f7ab293a7214c9548",
+ "price_download_utc": "2026-10-07T04:03:54+00:00",
+ "price_source": "yfinance 1.7.0, auto_adjust=True",
+ "sentiment_pull_completed_utc": "2026-10-07T04:33:03+00:00",
+ "sentiment_days_param": 167,
+ "n_candidates": 478,
+ "n_used": 473,
+ "n_ticks": 1586106,
+ "rows_discarded_after_lock": 2474538
+}
