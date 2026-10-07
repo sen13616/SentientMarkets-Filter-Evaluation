@@ -5,7 +5,6 @@ Uses sentiment ticks and the presence of price bars only; no returns are compute
 
 import json
 import sys
-from collections import Counter
 from datetime import date
 from pathlib import Path
 

@@ -11,6 +11,7 @@ assignment (row 0 = actual states, further rows = permutations).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -32,6 +33,7 @@ class States:
     conf: np.ndarray
     div_high: np.ndarray           # 1.0 / 0.0, NaN where no sub-index present
     ws: int                        # global index of the first window session
+    div_high_exo: np.ndarray | None = None  # narrative/influencer/macro spread > 40 (D21); never NaN
 
     def lookup(self, arr: np.ndarray, trades: pd.DataFrame, perm: np.ndarray | None = None) -> np.ndarray:
         """State values for each trade's (ticker, decision day): (K, T)."""
@@ -66,6 +68,18 @@ def size_mult(idx: np.ndarray, trades: pd.DataFrame, strategy: str) -> np.ndarra
     else:
         m = np.where(d > 0, (idx - 50.0) / 30.0, (50.0 - idx) / 30.0)
     return np.where(np.isfinite(idx), np.clip(m, 0.0, 1.0), 0.0)
+
+
+def exo_div_high(narrative: np.ndarray, influencer: np.ndarray, macro: np.ndarray) -> np.ndarray:
+    """veto-exo divergence (D21): spread across the three non-market layers > 40;
+    not high when fewer than two of them are present."""
+    x = np.stack([narrative, influencer, macro])
+    n = np.isfinite(x).sum(axis=0)
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN slices
+
+        spread = np.nanmax(x, axis=0) - np.nanmin(x, axis=0)
+    return np.where((n >= 2) & (spread > 40.0), 1.0, 0.0)
 
 
 def veto_mask(conf: np.ndarray, div_high: np.ndarray, level: str = "base") -> np.ndarray:

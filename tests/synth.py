@@ -36,4 +36,5 @@ def states_from(index: np.ndarray, conf: np.ndarray | None = None, div_high: np.
     conf = np.full((n, dw), 90.0) if conf is None else conf
     div_high = np.zeros((n, dw)) if div_high is None else div_high
     names = ("score_exo", "composite", "narrative", "influencer", "macro")
-    return States(index={k: index for k in names}, conf=conf, div_high=div_high, ws=ws)
+    return States(index={k: index for k in names}, conf=conf, div_high=div_high, ws=ws,
+                  div_high_exo=div_high.copy())

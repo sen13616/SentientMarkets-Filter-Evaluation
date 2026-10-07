@@ -25,7 +25,7 @@ ALL_STRATEGIES = ("CSM", "STR", "TSMOM", "BRK", "RSI-MR")
 class Cell:
     id: str
     strategy: str
-    filter: str                 # none | gate | size | veto
+    filter: str                 # none | gate | size | veto | veto-exo
     index: str | None = None    # input index (gate/size)
     level: str = "base"         # threshold variant
     redistribute: bool = False  # exposure robustness
@@ -49,14 +49,22 @@ def closed_cell_list() -> list[Cell]:
               for s in PRIMARY]
     cells += [Cell(f"sub/gate/{s}/narrative", s, "gate", "narrative", start=str(SUBWINDOW_START))
               for s in PRIMARY]
+    # Amendment D21 (2026-10-07): veto with divergence over the three non-market layers.
+    cells += [Cell(f"veto-exo/{s}", s, "veto-exo") for s in ALL_STRATEGIES]
     return cells
+
+
+def market_affected(cell: Cell) -> bool:
+    """Cells whose input includes the contaminated market layer: the composite index and every
+    veto that uses four-layer divergence (D2, D21)."""
+    return cell.index == "composite" or cell.filter == "veto"
 
 
 def entry_states(cell: Cell, states: F.States, trades: pd.DataFrame, perm=None):
     """Return (mult (K,T), valid (K,T)) for the cell's filter."""
-    if cell.filter == "veto":
+    if cell.filter in ("veto", "veto-exo"):
         conf = states.lookup(states.conf, trades, perm)
-        div = states.lookup(states.div_high, trades, perm)
+        div = states.lookup(states.div_high if cell.filter == "veto" else states.div_high_exo, trades, perm)
         valid = np.isfinite(conf) & np.isfinite(div)
         return F.veto_mask(conf, div, cell.level).astype(float), valid
     idx = states.lookup(states.index[cell.index], trades, perm)
@@ -87,6 +95,10 @@ def _metrics(book: Book, res: RunResult, k: int, mult: np.ndarray | None, pnl_sl
         "n_trades": int(taken.sum()), "turnover": float(res.traded[k, pnl_sl].sum() / n_s),
         "avg_gross": float(res.gross[k, pnl_sl].mean()), "avg_net": float(res.net[k, pnl_sl].mean()),
         "beta": beta(r, mkt), "n_sessions": int(n_s),
+        "n_long": int((taken & (book.trades["dir"].to_numpy() > 0)).sum()),
+        "n_short": int((taken & (book.trades["dir"].to_numpy() < 0)).sum()),
+        "avg_eff_n": float(np.nanmean(res.eff_n[k, pnl_sl])) if np.isfinite(res.eff_n[k, pnl_sl]).any()
+                     else float("nan"),
     }
 
 
@@ -146,6 +158,16 @@ def run_cell(cell: Cell, m: Market, states: F.States, base_trades: pd.DataFrame,
         "missing_share": n_missing / len(book.trades) if len(book.trades) else float("nan"),
     })
     out["fails_floor"] = bool(out["retention"] < 0.30)
+    out["market_affected"] = market_affected(cell)
+    if cell.filter == "size":
+        # Entry days on which every candidate's multiplier was zero, and P&L sessions on which the
+        # unfiltered book held positions but every open position's multiplier was zero (D22).
+        t_rel = book.trades["t"].to_numpy()
+        days = np.unique(t_rel)
+        out["entry_days_all_zero"] = int(sum((mult[0][t_rel == d] == 0).all() for d in days))
+        out["entry_days"] = int(len(days))
+        out["sessions_sized_book_empty"] = int(((res.gross[0, pnl_sl] <= 1e-15)
+                                                & (base_res.gross[0, pnl_sl] > 1e-15)).sum())
 
     # Restricted comparator when > 5% of candidate entries lack a state (section 6).
     if out["missing_share"] > 0.05:

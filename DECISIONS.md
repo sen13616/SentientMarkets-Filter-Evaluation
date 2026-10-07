@@ -167,3 +167,39 @@ p-value uniformity check runs with 10 bp costs. A first version held one price p
 across replications. Its differences centred on +0.92 (se 0.18), because conditional on one
 path the base Sharpe is fixed. That version was replaced. *Reason:* centring is only guaranteed
 under symmetry; uniform p-values are the property the inference relies on.
+
+## 2026-10-07 (amendment before Phase 4; set by the researcher after the baseline review and before any filtered strategy ran)
+
+**D21 Amendment: five `veto-exo` cells.** One per strategy. Same rule as the veto (skip the
+entry if confidence < 60 or divergence is high), but divergence is the spread across the
+narrative, influencer and macro sub-indices only. It is high above 40, and not high when fewer
+than two of the three are present. The confidence rule is unchanged, and a missing confidence
+is a missing state. The closed list grows from 72 cells to 77, 72 of them filtered. Every
+veto cell using four-layer divergence (`veto/*`, `sens/veto-c50/*`, `sens/veto-c70/*`) and
+every `composite` cell is labelled market-layer-affected wherever it is reported.
+`veto-exo` pass rates are reported alongside the others in `results/pass_rates.md`.
+*Reason (researcher):* the four-layer divergence includes the market sub-index, which is
+contaminated in this window and is price-derived.
+
+**D22 Extra descriptive columns, no new cells.**
+- CSM gate and size cells report entries passed, split into long and short.
+- Size cells report the average effective number of positions: the daily
+  1 / Σ wᵢ², with wᵢ each position's share of that day's gross open exposure, averaged over
+  P&L sessions with a non-empty book.
+- "Days on which every multiplier was zero" is reported two ways. The first counts entry days
+  on which every candidate entry's multiplier was zero. The second counts P&L sessions on
+  which the unfiltered book held positions but every open position's multiplier was zero, so
+  the sized book was flat (D14).
+
+*Reason:* the brief's wording fits both readings; the second is the one that matters for gross
+matching.
+
+**D23 Flat start confirmed.** Checked on the real trade lists before Phase 4:
+- No strategy has a decision before 27 April 2026 or an entry before 28 April.
+- Gross exposure is zero on 24 and 27 April.
+- TSMOM's initial longs are 245 entries decided on 27 April. Each has a valid state and passes
+  through the filters like any other entry.
+- BRK and RSI-MR carry no position from pre-window signals. Pre-window data enters only as
+  lookback input (closes; RSI on the session before a decision).
+
+*Reason:* researcher's check before running filters.

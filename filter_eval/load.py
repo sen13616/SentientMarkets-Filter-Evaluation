@@ -9,7 +9,7 @@ import pandas as pd
 
 from . import prices
 from .config import DATA, DIVERGENCE_HIGH, INPUT_INDICES, RESULTS
-from .filters import States
+from .filters import States, exo_div_high
 from .holdout import assert_locked
 from .market import Market, build_market
 
@@ -41,5 +41,6 @@ def load_inputs() -> tuple[Market, States]:
     div = arr("div_spread")
     div_high = np.where(np.isnan(div), np.nan, (div > DIVERGENCE_HIGH).astype(float))
     states = States(index={ix: arr(ix) for ix in INPUT_INDICES}, conf=arr("confidence"),
-                    div_high=div_high, ws=m.ws)
+                    div_high=div_high, ws=m.ws,
+                    div_high_exo=exo_div_high(arr("narrative"), arr("influencer"), arr("macro")))
     return m, states

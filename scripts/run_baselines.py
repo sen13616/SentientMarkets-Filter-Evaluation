@@ -14,11 +14,11 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from filter_eval import filters as F  # noqa: E402
 from filter_eval import ledger  # noqa: E402
-from filter_eval.config import INPUT_INDICES, RESULTS  # noqa: E402
+from filter_eval.config import RESULTS  # noqa: E402
 from filter_eval.evaluate import ALL_STRATEGIES, Cell, run_cell  # noqa: E402
 from filter_eval.load import data_snapshot, load_inputs  # noqa: E402
+from filter_eval.passrates import pass_rates, render  # noqa: E402
 from filter_eval.strategies import STRATEGIES  # noqa: E402
 
 CELLS = RESULTS / "cells"
@@ -62,30 +62,7 @@ def main(note: str = "Phase 3 baseline"):
         rows.append(res)
         print(f"  {s}: sharpe {res['sharpe']:.3f}, trades {res['n_trades']}")
 
-        # Pass rates: state lookups and filter rules only; no returns.
-        tr = trades[trades["t"] >= m.d0].reset_index(drop=True)
-        n = len(tr)
-        for ix in INPUT_INDICES:
-            v = states.lookup(states.index[ix], tr)
-            valid = np.isfinite(v[0])
-            g = F.gate_mask(v, tr, s)[0]
-            z = F.size_mult(v, tr, s)[0]
-            pass_rows.append({"strategy": s, "filter": "gate", "input": ix, "candidates": n,
-                              "missing_state": int((~valid).sum()), "pass": int(g.sum()),
-                              "fail_with_state": int((valid & ~g).sum())})
-            pass_rows.append({"strategy": s, "filter": "size", "input": ix, "candidates": n,
-                              "missing_state": int((~valid).sum()), "pass": int((z > 0).sum()),
-                              "fail_with_state": int((valid & (z == 0)).sum()),
-                              "full_size": int((z >= 1).sum())})
-        conf = states.lookup(states.conf, tr)
-        div = states.lookup(states.div_high, tr)
-        valid = np.isfinite(conf[0]) & np.isfinite(div[0])
-        keep = F.veto_mask(conf, div)[0]
-        pass_rows.append({"strategy": s, "filter": "veto", "input": "confidence + divergence",
-                          "candidates": n, "missing_state": int((~valid).sum()), "pass": int(keep.sum()),
-                          "fail_with_state": int((valid & ~keep).sum()),
-                          "vetoed_low_conf": int((valid & (conf[0] < 60)).sum()),
-                          "vetoed_high_div": int((valid & (div[0] == 1)).sum())})
+        pass_rows += pass_rates(s, trades, states, m.d0)
 
     # ---- baselines.md
     cols = [("sharpe", "Sharpe"), ("mean_daily", "Mean daily"), ("sd_daily", "SD daily"),
@@ -104,22 +81,10 @@ def main(note: str = "Phase 3 baseline"):
              tab.to_markdown(index=False), ""]
     (RESULTS / "baselines.md").write_text("\n".join(lines))
 
-    # ---- pass rates
+    # ---- pass rates (shared with scripts/pass_rates.py)
     pr = pd.DataFrame(pass_rows)
     pr.to_csv(RESULTS / "pass_rates.csv", index=False)
-    pr["pass share"] = (pr["pass"] / pr["candidates"]).map(lambda x: f"{100 * x:.1f}%")
-    plines = ["# Filter pass rates (counts only; no returns)", "",
-              "Rendered by `scripts/run_baselines.py`. Candidates are the unfiltered entries decided "
-              f"from {m.sessions[m.d0]}. Gate and size thresholds per INSTRUCTIONS.md section 8; "
-              "size 'pass' = multiplier > 0; veto passes when confidence >= 60 and divergence is not "
-              "high. `composite` is market-affected (D2).", ""]
-    for f in ("gate", "size", "veto"):
-        sub = pr[pr["filter"] == f].dropna(axis=1, how="all").drop(columns=["filter"])
-        for c in sub.columns:
-            if c not in ("strategy", "input", "pass share"):
-                sub[c] = sub[c].astype(int)
-        plines += [f"## {f.capitalize()}", "", sub.to_markdown(index=False), ""]
-    (RESULTS / "pass_rates.md").write_text("\n".join(plines))
+    (RESULTS / "pass_rates.md").write_text(render(pr, m.sessions[m.d0]) + "\n")
     print("wrote results/baselines.md, results/pass_rates.md")
 
 

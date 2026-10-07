@@ -103,6 +103,7 @@ class RunResult:
     net: np.ndarray        # (K, Dw) post-trade open net exposure
     traded: np.ndarray     # (K, Dw) traded notional (incl. the final close-out on the last day)
     k: np.ndarray | None = None  # (K, Dw) size-filter gross factor, if applied
+    eff_n: np.ndarray | None = None  # (K, Dw) 1 / sum of squared gross-normalised weights; NaN if flat
 
 
 def simulate(book: Book, P: np.ndarray) -> RunResult:
@@ -115,7 +116,11 @@ def simulate(book: Book, P: np.ndarray) -> RunResult:
     traded = np.abs(P - pre_trade).sum(axis=2)
     traded[:, -1] += np.abs(close_hold[:, -1]).sum(axis=1)       # close out at the last close
     ret = overnight + intraday - book.cost * traded
-    return RunResult(ret=ret, gross=np.abs(P).sum(axis=2), net=P.sum(axis=2), traded=traded)
+    gross = np.abs(P).sum(axis=2)
+    sq = (P ** 2).sum(axis=2)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        eff_n = np.where(gross > 1e-15, gross ** 2 / sq, np.nan)
+    return RunResult(ret=ret, gross=gross, net=P.sum(axis=2), traded=traded, eff_n=eff_n)
 
 
 def run(book: Book, w_signed: np.ndarray, target_gross: np.ndarray | None = None) -> RunResult:

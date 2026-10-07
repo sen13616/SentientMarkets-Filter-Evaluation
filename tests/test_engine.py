@@ -213,10 +213,32 @@ def test_inference_helpers():
 
 
 def test_closed_cell_list():
+    from filter_eval.evaluate import market_affected
     cells = closed_cell_list()
-    assert len(cells) == 72 and len({c.id for c in cells}) == 72
-    assert sum(c.filter != "none" for c in cells) == 67
+    assert len(cells) == 77 and len({c.id for c in cells}) == 77       # D21 amendment: +5 veto-exo
+    assert sum(c.filter != "none" for c in cells) == 72
+    assert sum(c.filter == "veto-exo" for c in cells) == 5
     assert not any(c.index == "market" for c in cells)
+    flagged = {c.id for c in cells if market_affected(c)}
+    assert flagged == {c.id for c in cells if c.index == "composite" or c.filter == "veto"}
+    assert "sens/veto-c50/CSM" in flagged and "veto-exo/CSM" not in flagged
+
+
+def test_exo_divergence_rule():
+    nar = np.array([[80.0, 80.0, 80.0, np.nan, np.nan]])
+    inf = np.array([[30.0, 50.0, np.nan, np.nan, 20.0]])
+    mac = np.array([[50.0, 45.0, np.nan, 90.0, np.nan]])
+    # columns: spread 50 -> high; spread 35 -> not; then three cases with a single layer -> not high
+    assert F.exo_div_high(nar, inf, mac).tolist() == [[1.0, 0.0, 0.0, 0.0, 0.0]]
+    assert F.exo_div_high(np.array([[np.nan]]), np.array([[20.0]]), np.array([[90.0]])).tolist() == [[1.0]]
+
+
+def test_effective_number_of_positions():
+    O = np.full((4, 3), 10.0)
+    m = make_market(O, O.copy(), ws=1)
+    tr = trades_df([(0, 1, 2, 9, 1, 0.5, "a"), (1, 1, 2, 9, 1, 0.25, "a"), (2, 1, 2, 9, 1, 0.25, "a")])
+    res = run(build_book(m, tr), np.array([0.5, 0.25, 0.25]))
+    assert np.isnan(res.eff_n[0, 0]) and res.eff_n[0, 1] == pytest.approx(1 / (0.25 + 0.0625 + 0.0625))
 
 
 # --- null and planted-effect checks ------------------------------------------
@@ -305,3 +327,21 @@ def test_ledger_is_append_only(tmp_path):
     ledger.append({"cell": "b", "seed": 1}, p)
     text = p.read_text()
     assert text.startswith(first) and text.count("\n") == 3
+
+
+@pytest.mark.parametrize("filt", ["gate", "size", "veto", "veto-exo"])
+def test_run_cell_every_filter_type(filt):
+    m = random_walk_market(n=60, seed=41)
+    tr = S.csm(m)
+    rng = np.random.default_rng(3)
+    dw = m.we - m.ws + 1
+    st = states_from(rng.uniform(0, 100, (m.n, dw)), conf=rng.uniform(40, 100, (m.n, dw)),
+                     div_high=(rng.random((m.n, dw)) < 0.2).astype(float), ws=m.ws)
+    ix = None if filt.startswith("veto") else "score_exo"
+    res = run_cell(Cell("t", "CSM", filt, ix, start=str(m.sessions[m.d0])), m, st, tr, n_perm=19, n_boot=9)
+    assert np.isfinite(res["sharpe_diff"]) and 0 < res["p_perm"] <= 1
+    assert res["f_n_long"] + res["f_n_short"] == res["f_n_trades"]
+    assert res["market_affected"] == (filt == "veto")
+    if filt == "size":
+        assert {"entry_days_all_zero", "sessions_sized_book_empty"} <= set(res)
+        assert res["f_avg_eff_n"] > 0
