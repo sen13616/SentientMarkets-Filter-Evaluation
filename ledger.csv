@@ -1,0 +1,11 @@
+timestamp_utc,cell,config_hash,code_commit,data_snapshot,seed,status,sharpe,sharpe_diff,p_perm,n_trades,retention,note
+2026-10-07T04:42:33+00:00,base/CSM,338e988c7ff4,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.0511839345260743,,,1504,,Phase 3 baseline
+2026-10-07T04:42:33+00:00,base/STR,8e885e1d5cb9,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.606106687399836,,,3572,,Phase 3 baseline
+2026-10-07T04:42:33+00:00,base/TSMOM,090699dda3c1,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.2654473865752958,,,807,,Phase 3 baseline
+2026-10-07T04:42:33+00:00,base/BRK,04fc6c484511,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,3.4211614015989915,,,207,,Phase 3 baseline
+2026-10-07T04:42:33+00:00,base/RSI-MR,252baf1c7baa,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,0.9556973813631684,,,117,,Phase 3 baseline
+2026-10-07T04:43:17+00:00,base/CSM,338e988c7ff4,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.0511839345260743,,,1504,,rerun: renamed 'Decision days' column to 'Days with entries'; no computation change
+2026-10-07T04:43:17+00:00,base/STR,8e885e1d5cb9,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.606106687399836,,,3572,,rerun: renamed 'Decision days' column to 'Days with entries'; no computation change
+2026-10-07T04:43:17+00:00,base/TSMOM,090699dda3c1,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,2.2654473865752958,,,807,,rerun: renamed 'Decision days' column to 'Days with entries'; no computation change
+2026-10-07T04:43:17+00:00,base/BRK,04fc6c484511,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,3.4211614015989915,,,207,,rerun: renamed 'Decision days' column to 'Days with entries'; no computation change
+2026-10-07T04:43:17+00:00,base/RSI-MR,252baf1c7baa,uncommitted,panel:1be321402207+prices:badee479f07f,20261007,ok,0.9556973813631684,,,117,,rerun: renamed 'Decision days' column to 'Days with entries'; no computation change
