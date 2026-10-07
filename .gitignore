@@ -1,0 +1,20 @@
+# secrets
+.env
+.env.*
+
+# data and caches (never committed; reproducible from scripts)
+data/
+cache/
+*.parquet
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
