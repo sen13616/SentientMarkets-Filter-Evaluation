@@ -2,23 +2,26 @@
 
     SM_DATA_DIR=/path/to/data python -m responsiveness.scripts.power
 
-Uses only two-session score changes on each stock's noise sessions (sessions in
-the event period more than two sessions from any candidate event). No change
-around any event is read. Writes results/power.md.
+Uses only two-session score changes on each stock's noise sessions (event-period
+sessions more than two sessions from any E1-E3 candidate; DECISIONS.md A3). No change
+around any event is read. Writes results/power.md and power.csv.
 
-Method (DECISIONS.md P1-P3):
+Method (DECISIONS.md P1-P3, A6):
 - Placebo base rate p0: share of noise-session changes larger than one noise unit.
-- Response: the relabelling null is simulated by drawing, for each stock, as many
-  noise sessions as it has kept events (without replacement; with replacement if it
-  has fewer noise sessions than events), 1,000 times. A result is significant when
-  the observed rate is above the null's 95th percentile (p = (1 + #null >= obs) /
-  1001 < 0.05). The detectable response rate is the smallest rate r with
-  P(Binomial(N, r) / N > that percentile) >= 0.80, treating events as independent.
-- Direction: for M moves, the smallest true accuracy with 80% power for a two-sided
-  exact binomial test at 0.05, and for the primary rule (accuracy >= 60% and the
-  95% interval above 50%, with the exact Clopper-Pearson interval standing in for
-  the bootstrap). M is shown at N x p0 (no response beyond the base rate) and at N
-  x the detectable response rate.
+- Null draws: for each stock, as many noise sessions as it has kept events in the
+  cell (without replacement; with replacement if it has fewer), 1,000 times.
+- Response: significant when the observed rate exceeds the null's 95th percentile
+  (p = (1 + #null >= obs) / 1001 < 0.05). The detectable response rate is the
+  smallest rate r with P(Binomial(N, r) / N > that percentile) >= 0.80, treating
+  events as independent.
+- Signed average move (the amended primary rule's second test): the null multiplies
+  the drawn changes by the cell's directions, permuted. A planted response of
+  delta noise units in each event's direction adds delta x (mean noise unit) to the
+  signed mean, so the detectable delta is (null 95th pct - 20th pct of the
+  unpermuted draws) / mean noise unit.
+- Direction accuracy (reported, no longer a pass condition): smallest true accuracy
+  with 80% power for a two-sided exact binomial test at 0.05, at M = N x p0 and
+  M = N x the detectable response rate.
 """
 
 from __future__ import annotations
@@ -28,26 +31,32 @@ import pandas as pd
 from scipy import stats
 
 from responsiveness import ledger, pipeline
-from responsiveness.config import (ALPHA, CONTAMINATED, EVENT_TYPES, INDICES, MOVE_UNITS, N_PERM,
-                                   POWER_TARGET, PRIMARY_INDEX, PRIMARY_MIN_ACCURACY, RESULTS, SEED)
+from responsiveness.config import (ALPHA, CONTAMINATED, GROUPS, INDICES, MIN_NOISE_CHANGES, MOVE_UNITS, N_PERM,
+                                   POWER_TARGET, PRIMARY_GROUP, PRIMARY_INDEX, RESULTS, SEED)
 
-GROUPS = {"E1": ["E1"], "E2": ["E2"], "E1+E2": ["E1", "E2"], "E3": ["E3"], "E4": ["E4"]}
 GRID = np.round(np.arange(0.0, 1.0001, 0.005), 3)
 
 
-def null_crit(z_by_stock: dict[int, np.ndarray], n_by_stock: dict[int, int], rng) -> tuple[float, float]:
-    """95th-percentile response rate under the simulated relabelling null, and its mean."""
-    N = sum(n_by_stock.values())
-    sims = np.empty(N_PERM)
-    for b in range(N_PERM):
-        hits = 0
-        for i, n in n_by_stock.items():
-            z = z_by_stock[i]
-            pick = rng.choice(len(z), size=n, replace=n > len(z))
-            hits += int((np.abs(z[pick]) > MOVE_UNITS).sum())
-        sims[b] = hits / N
-    k = int(np.ceil((1 - ALPHA) * (N_PERM + 1))) - 1      # obs must exceed this order statistic
-    return float(np.sort(sims)[min(k, N_PERM - 1)]), float(sims.mean())
+def null_draws(chg_by: dict[int, np.ndarray], sd_by: dict[int, float], n_by: dict[int, int], dirs: np.ndarray,
+               rng) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per draw: response rate, signed mean with permuted directions, and signed mean with the
+    cell's directions as they are (events ordered by stock, matching `dirs`)."""
+    cols, sds = [], []
+    for i, n in n_by.items():
+        x = chg_by[i]
+        pick = (np.argsort(rng.random((N_PERM, len(x))), axis=1)[:, :n] if n <= len(x)
+                else rng.integers(0, len(x), size=(N_PERM, n)))
+        cols.append(x[pick])
+        sds.append(np.full((N_PERM, n), sd_by[i]))
+    C, S = np.hstack(cols), np.hstack(sds)
+    resp = (np.abs(C) > MOVE_UNITS * S).mean(axis=1)
+    perm = rng.permuted(np.tile(dirs, (N_PERM, 1)), axis=1)
+    return resp, (C * perm).mean(axis=1), (C * dirs[None, :]).mean(axis=1)
+
+
+def crit_of(null: np.ndarray) -> float:
+    k = int(np.ceil((1 - ALPHA) * (N_PERM + 1))) - 1      # observed must exceed this order statistic
+    return float(np.sort(null)[min(k, N_PERM - 1)])
 
 
 def mde_rate(N: int, crit: float) -> float:
@@ -57,7 +66,7 @@ def mde_rate(N: int, crit: float) -> float:
     return float("nan")
 
 
-def mde_accuracy_binom(M: int) -> float:
+def mde_accuracy(M: int) -> float:
     if M < 1:
         return float("nan")
     x = np.arange(M + 1)
@@ -68,115 +77,112 @@ def mde_accuracy_binom(M: int) -> float:
     return float("nan")
 
 
-def mde_accuracy_primary(M: int) -> float:
-    if M < 1:
-        return float("nan")
-    x = np.arange(M + 1)
-    lo = np.array([stats.binomtest(int(k), M, 0.5).proportion_ci(0.95, method="exact").low for k in x])
-    ok = (x / M >= PRIMARY_MIN_ACCURACY) & (lo > 0.5)
-    for a in GRID[GRID >= 0.5]:
-        if stats.binom.pmf(x, M, a)[ok].sum() >= POWER_TARGET:
-            return float(a)
-    return float("nan")
-
-
-def fmt(x, pct=True):
-    return "n/a" if x is None or (isinstance(x, float) and np.isnan(x)) else (f"{x:.1%}" if pct else f"{x}")
+def pct(x):
+    return "n/a" if x is None or np.isnan(x) else f"{x:.1%}"
 
 
 def main() -> None:
     inp = pipeline.load_inputs()
-    st = pipeline.load_states(inp)
+    st = pipeline.load_states(inp, with_date_only=False)
     kept = inp.cands[inp.cands["status"] == "kept"]
     tix = {t: i for i, t in enumerate(inp.tickers)}
     rng = np.random.default_rng(SEED)
 
     n_noise = st.noise_mask.sum(axis=1)
-    L = ["# Noise units and power estimate (Phase 0)", "",
-         "Built from two-session score changes on noise sessions only (sessions in the event period more "
-         "than two sessions from any candidate event of the stock). No score change around any event was "
-         "read. Method: see the docstring of `responsiveness/scripts/power.py` and DECISIONS.md.", "",
+    L = ["# Noise units and power estimate (Phase 0, amended rules)", "",
+         "Built from two-session score changes on noise sessions only: event-period sessions (13 May to 18 "
+         "June 2026) more than two sessions from any E1, E2 or E3 candidate of the stock (DECISIONS.md A1, A3). "
+         "No score change around any event was read. Method: see the docstring of "
+         "`responsiveness/scripts/power.py`.", "",
          f"Data hash `{inp.data_hash}`; seed {SEED}; {N_PERM} null draws.", "",
          "## Noise sessions per stock", "",
-         f"Event-period sessions with a defined two-session change: up to 27 per stock. Noise sessions per "
-         f"stock: min {n_noise.min()}, 10th pct {int(np.percentile(n_noise, 10))}, median "
-         f"{int(np.median(n_noise))}, 90th pct {int(np.percentile(n_noise, 90))}, max {n_noise.max()}.", "",
+         f"Noise sessions per stock (out of up to 26): min {n_noise.min()}, 10th pct "
+         f"{int(np.percentile(n_noise, 10))}, median {int(np.median(n_noise))}, 90th pct "
+         f"{int(np.percentile(n_noise, 90))}, max {n_noise.max()}. Stocks with fewer than {MIN_NOISE_CHANGES}: "
+         f"{int((n_noise < MIN_NOISE_CHANGES).sum())}.", "",
          pd.Series(n_noise).value_counts().sort_index().rename("stocks").rename_axis("noise sessions")
          .to_frame().T.to_markdown(), ""]
 
-    # Noise units per index.
     rows = []
     for a, ix in enumerate(INDICES):
         sd, n = st.sd[a], st.sd_n[a]
-        good = ~np.isnan(sd) & (sd > 0)
+        good = ~np.isnan(sd)
         rows.append({"index": ix + (" (contaminated)" if ix in CONTAMINATED else ""),
                      "stocks with a noise unit": int(good.sum()),
-                     "SD = 0": int((sd == 0).sum()), "fewer than 2 changes": int(np.isnan(sd).sum()),
-                     "median changes used": int(np.median(n)),
-                     "median noise unit (pts)": round(float(np.nanmedian(np.where(good, sd, np.nan))), 2),
-                     "IQR noise unit (pts)": f"{np.nanpercentile(np.where(good, sd, np.nan), 25):.2f}-"
-                                             f"{np.nanpercentile(np.where(good, sd, np.nan), 75):.2f}"})
+                     f"excluded: fewer than {MIN_NOISE_CHANGES} changes": int((n < MIN_NOISE_CHANGES).sum()),
+                     "excluded: SD = 0": int(((n >= MIN_NOISE_CHANGES) & ~good).sum()),
+                     "median changes used": int(np.median(n[good])),
+                     "median noise unit (pts)": round(float(np.median(sd[good])), 2),
+                     "IQR noise unit (pts)": f"{np.percentile(sd[good], 25):.2f}-{np.percentile(sd[good], 75):.2f}"})
     L += ["## Noise units by index", "", pd.DataFrame(rows).to_markdown(index=False), "",
-          "A stock with no noise unit for an index (SD 0 or fewer than 2 changes) cannot have moves measured "
-          "on that index; its events drop out of that index's cells.", ""]
+          "A stock without a noise unit for an index contributes no events to that index's cells.", ""]
 
-    # Power.
     prow, head = [], {}
     for a, ix in enumerate(INDICES):
-        sd = st.sd[a]
-        z_by = {}
+        chg_by, sd_by = {}, {}
         for i in range(len(inp.tickers)):
-            if np.isnan(sd[i]) or sd[i] <= 0:
+            if np.isnan(st.sd[a, i]):
                 continue
-            z = st.chg[a, i, st.noise_mask[i]] / sd[i]
-            z = z[~np.isnan(z)]
-            if len(z):
-                z_by[i] = z
-        allz = np.concatenate(list(z_by.values())) if z_by else np.array([])
-        p0 = float((np.abs(allz) > MOVE_UNITS).mean()) if len(allz) else float("nan")
-        for g, types in GROUPS.items():
+            x = st.chg[a, i, st.noise_mask[i]]
+            x = x[~np.isnan(x)]
+            if len(x):
+                chg_by[i], sd_by[i] = x, float(st.sd[a, i])
+        allz = np.concatenate([chg_by[i] / sd_by[i] for i in chg_by])
+        p0 = float((np.abs(allz) > MOVE_UNITS).mean())
+        for g, (types, dfilt) in GROUPS.items():
             ev = kept[kept["type"].isin(types)]
-            n_by = ev.groupby("ticker").size()
-            n_by = {tix[t]: int(n) for t, n in n_by.items() if tix[t] in z_by}
-            N = sum(n_by.values())
+            if dfilt is not None:
+                ev = ev[ev["direction"] == dfilt]
+            ev = ev[[tix[t] in chg_by for t in ev["ticker"]]]
+            ev = ev.assign(row=ev["ticker"].map(tix)).sort_values("row", kind="stable")
+            N = len(ev)
             if N == 0:
                 continue
-            crit, mean = null_crit(z_by, n_by, rng)
-            r = mde_rate(N, crit)
+            n_by = ev.groupby("row", sort=True).size().to_dict()
+            dirs = ev["direction"].to_numpy(dtype=float)
+            resp, signed_null, signed_alt = null_draws(chg_by, sd_by, n_by, dirs, rng)
+            crit_r, crit_s = crit_of(resp), crit_of(signed_null)
+            r = mde_rate(N, crit_r)
+            mean_sd = float(np.mean([sd_by[i] for i in ev["row"]]))
+            delta = (crit_s - np.quantile(signed_alt, 1 - POWER_TARGET)) / mean_sd
             M0, M1 = int(round(N * p0)), (int(round(N * r)) if not np.isnan(r) else 0)
             prow.append({"index": ix + (" (contaminated)" if ix in CONTAMINATED else ""), "events": g, "N": N,
-                         "placebo rate p0": fmt(p0), "null 95th pct": fmt(crit),
-                         "detectable response rate": fmt(r),
-                         "moves at p0": M0, "detectable accuracy (binomial) at p0": fmt(mde_accuracy_binom(M0)),
-                         "detectable accuracy (primary rule) at p0": fmt(mde_accuracy_primary(M0)),
-                         "moves at detectable rate": M1,
-                         "detectable accuracy (binomial)": fmt(mde_accuracy_binom(M1)),
-                         "detectable accuracy (primary rule)": fmt(mde_accuracy_primary(M1))})
-            if ix == PRIMARY_INDEX and g == "E1+E2":
-                head = {"N": N, "p0": round(p0, 4), "crit": round(crit, 4), "mde_rate": r}
+                         "placebo rate p0": pct(p0), "response null 95th pct": pct(crit_r),
+                         "detectable response rate": pct(r),
+                         "detectable signed move (noise units)": round(delta, 2),
+                         "detectable signed move (pts)": round(delta * mean_sd, 2),
+                         "mean noise unit (pts)": round(mean_sd, 2),
+                         "moves at p0": M0, "detectable accuracy at p0": pct(mde_accuracy(M0)),
+                         "moves at detectable rate": M1, "detectable accuracy at that rate": pct(mde_accuracy(M1))})
+            if ix == PRIMARY_INDEX and g == PRIMARY_GROUP:
+                head = {"N": N, "p0": round(p0, 4), "crit_response": round(crit_r, 4), "mde_rate": r,
+                        "mde_signed_units": round(delta, 3), "mde_signed_pts": round(delta * mean_sd, 2)}
     p = pd.DataFrame(prow)
-    prim = p[(p["index"] == PRIMARY_INDEX) & (p["events"] == "E1+E2")]
-    L += ["## Primary cell: score_exo, E1 and E2 pooled", "", prim.set_index("events").T.to_markdown(), "",
-          "## All cells: detectable response rate", "",
-          p[["index", "events", "N", "placebo rate p0", "null 95th pct", "detectable response rate"]]
+    prim = p[(p["index"] == PRIMARY_INDEX) & (p["events"] == PRIMARY_GROUP)]
+    L += [f"## Primary cell: {PRIMARY_INDEX}, {PRIMARY_GROUP} pooled (amended rule, DECISIONS.md A6)", "",
+          "The cell passes if response p < 0.05, signed-average-move p < 0.05 and the unexplained-move rate "
+          "is below 50%. The smallest effects detectable with 80% power at the 0.05 level:", "",
+          prim.set_index("events").T.to_markdown(), "",
+          "## All cells: response and signed move", "",
+          p[["index", "events", "N", "placebo rate p0", "response null 95th pct", "detectable response rate",
+             "detectable signed move (noise units)", "detectable signed move (pts)", "mean noise unit (pts)"]]
           .to_markdown(index=False), "",
-          "## All cells: detectable direction accuracy", "",
-          "At 80% power. 'Primary rule' means accuracy >= 60% with the 95% interval wholly above 50%.", "",
-          p[["index", "events", "moves at p0", "detectable accuracy (binomial) at p0",
-             "detectable accuracy (primary rule) at p0", "moves at detectable rate",
-             "detectable accuracy (binomial)", "detectable accuracy (primary rule)"]].to_markdown(index=False), "",
+          "## All cells: direction accuracy (reported only; not a pass condition)", "",
+          p[["index", "events", "moves at p0", "detectable accuracy at p0", "moves at detectable rate",
+             "detectable accuracy at that rate"]].to_markdown(index=False), "",
           "## Caveats", "",
-          "- Events are treated as independent. Events cluster in time (e.g. common news days), so the "
-          "bootstrap over event dates in Phase 2 will give wider intervals than the exact binomial interval "
-          "used here; the detectable accuracies are optimistic.",
-          "- The null here is drawn from noise sessions only. Which sessions the Phase 2 relabelling draws "
-          "from is fixed in Phase 1 (DECISIONS.md); if it includes sessions near events, its null rate will "
-          "differ from p0.",
-          "- The unexplained-move rate (the primary rule's third condition) is not estimated here: its "
-          "denominator includes changes around events.", ""]
+          "- Events are treated as independent. Events cluster in time (common news days), so the real tests "
+          "will be somewhat less powerful than shown.",
+          "- The null here is drawn from noise sessions only. The Phase 2 relabelling draws from every "
+          "eligible event-period session of the stock, including sessions near E4 and other events "
+          "(DECISIONS.md M3), so its null rate can differ from p0.",
+          "- The signed-move estimate assumes a response of the same size in noise units for every event; a "
+          "response concentrated in a few events needs a larger average to be detected.",
+          "- The unexplained-move rate (the third condition) is not estimated here: its denominator includes "
+          "changes around events.", ""]
     (RESULTS / "power.md").write_text("\n".join(L) + "\n")
     p.to_csv(RESULTS / "power.csv", index=False)
-    row = ledger.append("phase0_power", inp.data_hash, SEED, head)
+    row = ledger.append("phase0_power", inp.data_hash, SEED, head, note="amended rules (DECISIONS.md A1-A6)")
     print("\n".join(L))
     print("ledger:", row["code_commit"], row["headline"])
 

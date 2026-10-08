@@ -96,25 +96,152 @@ the number of moves is unknown before outcomes; these bracket it.
 **P3 Two-sided binomial test.** The direction p-value is the two-sided exact binomial
 p-value against 50%. *Reason:* the conventional default when the brief does not specify.
 
-## Open questions for the researcher (Phase 0 checkpoint)
+## Questions raised at the Phase 0 checkpoint (answered 2026-10-08, below)
 
-**Q1 OPEN: events with R = 12 May.** Their "before" reading is the 11 May state, taken under
+**Q1 (answered): events with R = 12 May.** Their "before" reading is the 11 May state, taken under
 the earlier narrative text model, and the noise change for d = 12 May also spans 11 May. There
 are 25 such events (E1 5, E3 2, E4 18; no E2). Keep the brief as written, or start the event
 period at 13 May?
 
-**Q2 OPEN: E4 reaction session.** The brief sets R to the transaction date. Insider trades
+**Q2 (answered): E4 reaction session.** The brief sets R to the transaction date. Insider trades
 become public through Form 4 filings up to two business days later, so the market usually
 cannot trade on them at R. That conflicts with the definition of R as the first session the
 market could trade. The filing date is not in the yfinance table. Keep as written?
 
-**Q3 OPEN: minimum noise sessions.** Noise sessions per stock: 4 stocks have 0, 15 have 1–5,
+**Q3 (answered): minimum noise sessions.** Noise sessions per stock: 4 stocks have 0, 15 have 1–5,
 and the median is 22. Noise units built from two to five changes are unreliable. Set a
 minimum number of changes (the code currently requires 2), or keep 2?
 
-**Q4 OPEN: same-type rule (R4).** Approve R4, which drops 280 E4, 13 E3 and no E1/E2
+**Q4 (answered): same-type rule (R4).** Approve R4, which drops 280 E4, 13 E3 and no E1/E2
 candidates as same-type overlaps, or choose another rule?
 
-**Q5 OPEN: E2 below 30.** E2 has 21 kept events (45 candidates, 22 of them on E1 reaction
+**Q5 (answered): E2 below 30.** E2 has 21 kept events (45 candidates, 22 of them on E1 reaction
 sessions). As instructed, no threshold or source is changed. E2 is reported alone with this
 caveat and pooled with E1 in the primary cell (78 events).
+
+## 2026-10-08 (researcher's answers; set before any score response was computed)
+
+**A1 (Q1) Event period starts 13 May.** Every event needs R−1 ≥ 12 May, so reaction sessions
+run from 13 May to 18 June 2026. Any noise-unit change that spans 11 to 12 May is dropped (a
+change at session d needs d−1 ≥ 12 May). A "before" reading must come from a tick stamped on
+or after 12 May (00:00 UTC); otherwise the event has no before reading for that index and is
+counted. Placebo and relabelled sessions follow the same rule. *Reason (researcher):* the
+narrative model changed on 12 May, so a before/after pair across that date measures the model
+switch, not the event.
+
+**A2 (Q2) E4 reaction session stays the transaction date.** The filing lag (up to two
+business days) is recorded as a limitation. Insider purchases and sales are reported
+separately as well as together (cells `E4`, `E4 purchase`, `E4 sale`). *Reason
+(researcher):* keep the brief as written, and make the asymmetry between purchases and sales
+visible.
+
+**A3 (Q3) Noise units need at least 10 non-event sessions.** A stock with fewer than 10
+defined two-session changes on noise sessions for an index has no noise unit for that index.
+Its events are excluded from that index's cells and counted. Noise and placebo sessions
+exclude windows around E1, E2 and E3 candidates only, not E4. Results report how many
+placebo sessions fall within an E4 window, meaning the placebo's window (R5) overlaps the
+window of an E4 candidate on the same stock. Replaces R11's minimum of 2. *Reason
+(researcher):* insider filings are so frequent that excluding them leaves too few clean
+sessions.
+
+**A4 (Q4) Overlapping same-type events are collapsed, not dropped.** Within one stock and
+type, events whose windows overlap, directly or through a chain of overlaps, form one
+cluster. The cluster becomes a single event at its earliest member: its R, its window and
+its event time. Its direction is:
+- **E4:** the sign of the net signed shares (purchases +, sales −);
+- **E3:** the majority of upgrades and downgrades;
+- **E1 and E2:** the majority as well (the researcher did not specify; neither type had a
+  same-type overlap in Phase 0).
+
+A cluster that nets to zero or ties is dropped. Results report how many events were
+collapsed and how many clusters were dropped. Replaces R4. *Reason (researcher):* repeated
+filings are one event, and their net says which way it points.
+
+**A5 EPS cross-check carries no weight.** It is reported, with a note that nearly every
+company beat estimates in the period, so the surprise sign hardly varies. *Reason
+(researcher):* 55 of 57 surprises were positive.
+
+**A6 Primary rule amended on power grounds (no outcomes seen).** The primary cell
+(`score_exo`, E1+E2 pooled) passes if all three hold:
+1. response p < 0.05 (section 6, test 1);
+2. signed-average-move p < 0.05 (section 6, test 3), which uses every event, not only those
+   that moved;
+3. an unexplained-move rate below 50%.
+
+Direction accuracy and its interval are still reported but are no longer a pass condition.
+The power estimate is recomputed for the amended rule. Replaces the primary rule of BRIEF.md
+section 6. *Reason (researcher):* the direction criterion used only the events that moved,
+and Phase 0 showed it could detect only accuracies of about 72–77%.
+
+**A7 This run is a pilot.** RESULTS.md labels it a pilot, states its power plainly, and says
+the definitive run is planned on the October 2026 earnings season with the same code and
+rules. *Reason (researcher):* the May–June window holds few earnings events.
+
+## 2026-10-08 (Phase 1 choices that follow from A1–A7 or that the brief leaves open)
+
+**M1 Event measurement.** Change = after − before, in index points. Before is the reading
+under R10 and A1; after is the daily state of R+1. An event with either reading missing for
+an index is excluded from that index's cells and counted. *Reason:* the brief's definition.
+
+**M2 Scorecard rates are shares of all measured events.**
+- Response rate: moves ÷ events.
+- Wrong-way rate: moves against the event's direction ÷ events.
+- Miss rate: 1 − response rate.
+- Direction accuracy: moves in the event's direction ÷ moves.
+
+A change of exactly zero is never a move. *Reason:* response = right-way + wrong-way, and
+miss is the rest, so the three rates add to 1.
+
+**M3 Relabelling (tests 1 and 3).**
+- **Sessions drawn:** for each stock, as many sessions as it has events in the cell, without
+  replacement, from its eligible sessions. Eligible sessions are event-period sessions whose
+  date-only change is defined for the index; this includes the stock's own event sessions,
+  so the observed labelling is one of the possible ones. A stock with fewer eligible sessions
+  than events draws with replacement.
+- **Change at a relabelled session:** measured date-only. Before is the last tick before
+  21:45 UTC on d−1, stamped on or after 12 May; after is the state of d+1.
+- **Test 3 directions:** the cell's directions are permuted across all its events, which
+  keeps the up/down mix.
+- **p-values:** 1,000 draws with fixed seed 20260512; p = (1 + #draws ≥ observed) / 1001,
+  one-sided upward.
+
+*Reason:* the brief's tests. Measuring every relabelled date the same way keeps the null
+comparable, and keeping the up/down mix keeps any common drift in the score inside the null.
+
+**M4 Bootstrap over event dates.** The bootstrap resamples the cell's distinct reaction
+dates with replacement, 2,000 times, and takes every event on each drawn date. The 95%
+interval is the 2.5th to 97.5th percentile. The same draws also give intervals for the
+response rate and the signed average move. A draw with no moves is skipped when computing
+accuracy. *Reason:* events on the same date share market-wide news, so dates are the
+independent unit.
+
+**M5 Placebo dates.** For each event, up to 20 sessions are drawn without replacement from
+the stock's noise sessions (A3) on which the date-only change is defined for the index. They
+are measured date-only and given the event's direction. Results report the placebo response
+rate, direction accuracy and signed average move. *Reason:* the brief's definition.
+
+**M6 Unexplained moves.**
+- **Large changes counted:** every stock with a noise unit for the index, every event-period
+  session d with a defined two-session change, where |change| > 2 noise units.
+- **Explained:** a change is explained if any candidate event of any type (R9, E4 included)
+  has R in [d−1, d+1], or if the stock's market-adjusted return on d−1, d or d+1 exceeds
+  twice its typical daily move.
+- **Typical daily move:** the median absolute market-adjusted close-to-close return over the
+  120 sessions ending 12 May 2026.
+- **Reporting:** the rate is unexplained ÷ large, with the explained share split into
+  event-only, price-only and both.
+
+*Reason:* a robust "typical" measured before the event period, so the period's own events
+cannot inflate it.
+
+**M7 Cells and multiple comparisons.**
+- **Cells:** 6 indices × 7 event groups (E1, E2, E1+E2, E3, E4, E4 purchase, E4 sale) = 42.
+- **Primary cell:** `score_exo` × E1+E2.
+- **Benjamini-Hochberg families:** applied separately to each test (response, signed move,
+  direction binomial), over the secondary cells excluding the market channel. Market-channel
+  cells are reported with raw p-values only and flagged. The count of cells examined is
+  stated.
+- **Index of interest:** for E3 and E4 cells, the influencer channel.
+
+*Reason:* the market channel gets no weight (BRIEF.md section 3), and families keep tests of
+different questions from diluting each other.

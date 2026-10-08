@@ -2,9 +2,13 @@
 
 - Daily state of session d: the last tick stamped on UTC day d before 21:45 UTC
   (the first experiment's rule); NaN if there is none.
-- Before: the last tick stamped strictly before an instant, on any day.
+- Before: the last tick stamped strictly before an instant, on any day on or after
+  the narrative model change (12 May 2026; DECISIONS.md A1).
+- After: the daily state of R+1.
+- Date-only change at session d: after = state(d+1), before = the before reading at
+  21:45 UTC on d-1. Used for relabelled and placebo sessions.
 - Noise unit: per stock and index, the sample standard deviation (ddof 1) of
-  state(d+1) - state(d-1) over the stock's noise sessions d.
+  state(d+1) - state(d-1) over the stock's noise sessions d, given at least 10.
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from .config import INDICES
+from .config import INDICES, MIN_NOISE_CHANGES, MODEL_CHANGE
 from .events import Calendar, cutoff_utc
 
 
@@ -53,6 +57,37 @@ class TickBook:
         return v
 
 
+def before_reading(book: TickBook, ticker: str, instant, floor: date = MODEL_CHANGE) -> np.ndarray:
+    """Last tick strictly before `instant`, provided it is stamped on or after `floor`."""
+    v, ts = book.last_before(ticker, instant)
+    if ts is None or ts.date() < floor:
+        return np.full(len(book.indices), np.nan)
+    return v
+
+
+def event_readings(book: TickBook, ev: pd.DataFrame, floor: date = MODEL_CHANGE) -> tuple[np.ndarray, np.ndarray]:
+    """Before and after readings (n_events x n_indices) for events with columns
+    ticker, before_ts, R_plus_1."""
+    n = len(ev)
+    bef = np.full((n, len(book.indices)), np.nan)
+    aft = np.full((n, len(book.indices)), np.nan)
+    for k, (t, b, Rp) in enumerate(zip(ev["ticker"], ev["before_ts"], ev["R_plus_1"])):
+        bef[k] = before_reading(book, t, b, floor)
+        aft[k] = book.state(t, Rp)
+    return bef, aft
+
+
+def date_only_changes(book: TickBook, tickers: list[str], sessions: list[date],
+                      floor: date = MODEL_CHANGE) -> np.ndarray:
+    """(n_indices, n_tickers, n_sessions): state(d+1) - before reading at 21:45 UTC on d-1."""
+    out = np.full((len(book.indices), len(tickers), len(sessions)), np.nan)
+    for i, t in enumerate(tickers):
+        for j in range(1, len(sessions) - 1):
+            out[:, i, j] = book.state(t, sessions[j + 1]) - before_reading(book, t, cutoff_utc(sessions[j - 1]),
+                                                                          floor)
+    return out
+
+
 def state_cube(book: TickBook, tickers: list[str], sessions: list[date]) -> np.ndarray:
     """Array (n_indices, n_tickers, n_sessions) of daily states."""
     out = np.full((len(book.indices), len(tickers), len(sessions)), np.nan)
@@ -70,13 +105,15 @@ def two_session_changes(cube: np.ndarray) -> np.ndarray:
 
 
 def noise_sessions(tickers: list[str], sessions: list[date], period: tuple[date, date],
-                   ev_sessions: dict[str, set], cal: Calendar, exclusion: int) -> np.ndarray:
-    """Boolean (n_tickers, n_sessions): d in the event period, with d-1 and d+1 in the
-    session list, and no candidate event R within `exclusion` sessions of d."""
+                   ev_sessions: dict[str, set], cal: Calendar, exclusion: int,
+                   floor: date = MODEL_CHANGE) -> np.ndarray:
+    """Boolean (n_tickers, n_sessions): d in the event period, with d-1 >= `floor` and d+1
+    in the session list, and no event R (of the types in `ev_sessions`) within
+    `exclusion` sessions of d."""
     lo, hi = period
     mask = np.zeros((len(tickers), len(sessions)), dtype=bool)
     for j, d in enumerate(sessions):
-        if not (lo <= d <= hi) or j == 0 or j == len(sessions) - 1:
+        if not (lo <= d <= hi) or j == 0 or j == len(sessions) - 1 or sessions[j - 1] < floor:
             continue
         for i, t in enumerate(tickers):
             evs = ev_sessions.get(t, set())
@@ -85,9 +122,10 @@ def noise_sessions(tickers: list[str], sessions: list[date], period: tuple[date,
     return mask
 
 
-def noise_units(chg: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def noise_units(chg: np.ndarray, mask: np.ndarray, min_n: int = MIN_NOISE_CHANGES
+                ) -> tuple[np.ndarray, np.ndarray]:
     """Per (index, ticker): SD (ddof 1) of the changes on noise sessions, and the number
-    of defined changes it uses. SD is NaN with fewer than 2 changes."""
+    of defined changes it uses. SD is NaN with fewer than `min_n` changes or when it is 0."""
     n_ix, n_t, _ = chg.shape
     sd = np.full((n_ix, n_t), np.nan)
     cnt = np.zeros((n_ix, n_t), dtype=int)
@@ -96,6 +134,7 @@ def noise_units(chg: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarr
             x = chg[a, i, mask[i]]
             x = x[~np.isnan(x)]
             cnt[a, i] = len(x)
-            if len(x) >= 2:
-                sd[a, i] = np.std(x, ddof=1)
+            if len(x) >= max(min_n, 2):
+                v = np.std(x, ddof=1)
+                sd[a, i] = v if v > 0 else np.nan
     return sd, cnt

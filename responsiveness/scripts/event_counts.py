@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 from datetime import date
 
-import numpy as np
 import pandas as pd
 
 from responsiveness import ledger, pipeline
@@ -68,13 +67,15 @@ def main() -> None:
     t.loc["E1+E2 pooled", "stocks"] = kept[kept["type"].isin(["E1", "E2"])]["ticker"].nunique()
     t.index = [NAMES.get(i, i) for i in t.index]
     below = [NAMES[ty] for ty in EVENT_TYPES if (kept["type"] == ty).sum() < 30]
-    L += ["## Events kept, by type and direction", "", md(t), "",
+    L += ["## Events kept, by type and direction", "",
+          "For E4, up = net insider purchase and down = net insider sale; both are also reported as "
+          "separate cells (DECISIONS.md A2).", "", md(t), "",
           "**Types with fewer than 30 events: " + (", ".join(below) if below else "none") + ".**", ""]
 
     # Funnel: every candidate whose R is in the period, by status.
     f = per.groupby(["type", "status"]).size().unstack(fill_value=0).reindex(list(EVENT_TYPES), fill_value=0)
-    order = ["kept", "no_time", "no_direction", "no_window", "e1_reaction_session", "same_type_overlap",
-             "same_type_conflict", "overlap_E1", "overlap_E2", "overlap_E3"]
+    order = ["kept", "no_time", "no_direction", "no_window", "e1_reaction_session", "collapsed_into",
+             "cluster_tie", "overlap_E1", "overlap_E2", "overlap_E3"]
     f = f.reindex(columns=[o for o in order if o in f.columns] + [o for o in f.columns if o not in order],
                   fill_value=0)
     f.insert(0, "candidates", f.sum(axis=1))
@@ -83,10 +84,29 @@ def main() -> None:
           "Columns: `no_time` earnings release without a time of day; `no_direction` zero market-adjusted "
           "return (E1) or zero move (E2); `no_window` R-1 or R+1 outside the session list; "
           "`e1_reaction_session` an E2 session that is an E1 reaction session for the stock (excluded by "
-          "definition); `same_type_overlap` window overlaps an earlier kept event of the same type and stock; "
-          "`same_type_conflict` a kept event whose window holds a same-type event of the opposite direction "
-          "(both dropped); `overlap_Ek` window overlaps a kept higher-ranked event Ek on the same stock.", "",
+          "definition); `collapsed_into` merged into an earlier overlapping event of the same type and stock "
+          "(DECISIONS.md A4); `cluster_tie` the earliest member of a same-type cluster whose net direction is "
+          "zero (cluster dropped); `overlap_Ek` window overlaps a kept higher-ranked event Ek on the same "
+          "stock. A kept event may stand for a collapsed cluster.", "",
           md(f), ""]
+
+    # Same-type clusters (A4), over every candidate whose cluster anchor has R in the period.
+    anchors = per[per["n_members"] > 1]
+    crow = []
+    for ty in EVENT_TYPES:
+        a = anchors[anchors["type"] == ty]
+        crow.append({"type": NAMES[ty], "clusters": len(a), "events in clusters": int(a["n_members"].sum()),
+                     "events collapsed": int((per["status"].eq("collapsed_into") & per["type"].eq(ty)).sum()),
+                     "clusters dropped (tie)": int((a["status"] == "cluster_tie").sum()),
+                     "clusters kept": int((a["status"] == "kept").sum()),
+                     "largest cluster": int(a["n_members"].max()) if len(a) else 0,
+                     "clusters reaching past R+1": int(sum(pd.Timestamp(l) > pd.Timestamp(r)
+                                                           for l, r in zip(a["cluster_last_R"], a["R_plus_1"])))})
+    L += ["## Same-type clusters (DECISIONS.md A4)", "",
+          "Overlapping same-type events on a stock become one event at the earliest member, with the net "
+          "direction (E4: signed shares; otherwise majority). 'Clusters reaching past R+1' have members "
+          "whose reaction session falls after the measured window of the collapsed event.", "",
+          pd.DataFrame(crow).to_markdown(index=False), ""]
 
     # E1 detail.
     e1 = per[per["type"] == "E1"]
@@ -100,7 +120,9 @@ def main() -> None:
           "- Release times (America/New_York): " + ", ".join(f"{h} x{n}" for h, n in hours.items()) + ".",
           f"- Cross-check on kept E1 events: market-adjusted return sign agrees with EPS-surprise sign in "
           f"{int((agree['direction'] == agree['surprise_sign']).sum())} of {len(agree)} with a nonzero "
-          f"surprise ({int((e1k['surprise_sign'] == 0).sum())} with zero or missing surprise).", ""]
+          f"surprise ({int((e1k['surprise_sign'] == 0).sum())} with zero or missing surprise). This "
+          "cross-check carries no weight (DECISIONS.md A5): nearly every company beat estimates in the period, "
+          "so the surprise sign hardly varies.", ""]
 
     # Overlaps displaced by kept events.
     disp = kept[kept["overlaps_dropped"] != ""]
@@ -121,10 +143,8 @@ def main() -> None:
     w.index.name = "week of (Monday)"
     wd.index.name = "week of (Monday)"
     L += ["## Kept events by week of R", "", md(w), "", "By direction:", "", md(wd), "",
-          f"Events with R = 12 May (their 'before' reading is the 11 May state): "
-          f"{int((kept['R'] == EVENT_START).sum())} "
-          f"({', '.join(f'{k} {v}' for k, v in kept[kept['R'] == EVENT_START]['type'].value_counts().sort_index().items())}).",
-          ""]
+          f"Events that would have been kept with R = 12 May, now outside the period (DECISIONS.md A1): "
+          f"{int(((c['status'] == 'outside_period') & (c['R'] == date(2026, 5, 12))).sum())}.", ""]
 
     # Events per stock.
     eps = kept.groupby("ticker").size().reindex(inp.tickers, fill_value=0)
@@ -137,7 +157,7 @@ def main() -> None:
     per.groupby(["type", "status"]).size().rename("n").reset_index().to_csv(RESULTS / "event_counts.csv",
                                                                            index=False)
     head = {ty: int((kept["type"] == ty).sum()) for ty in EVENT_TYPES}
-    row = ledger.append("phase0_event_counts", inp.data_hash, SEED, head)
+    row = ledger.append("phase0_event_counts", inp.data_hash, SEED, head, note="amended rules (DECISIONS.md A1-A4)")
     print("\n".join(L))
     print("ledger:", row["code_commit"], row["headline"])
 

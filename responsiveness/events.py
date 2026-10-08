@@ -4,14 +4,14 @@ Each candidate event gets a reaction session R, a direction (+1 up, -1 down, 0
 none) and a measurement window running from its "before" instant to the daily
 state of R+1. Candidates then pass through, in order:
 
-1. direction: candidates with direction 0 are dropped (counted);
-2. same-type overlap: within a stock and type, events are taken in time order
-   and one whose window overlaps an already-kept event of that type is dropped;
-   a kept event whose window holds a same-type event of the opposite direction
-   is dropped as conflicting (DECISIONS.md R4);
+1. direction: candidates with direction 0 are dropped (counted), and E2 sessions
+   that are E1 reaction sessions are not E2 events;
+2. same-type overlap: within a stock and type, events whose windows overlap
+   (directly or through a chain) collapse into one event at the earliest member,
+   with the net direction; a cluster netting to zero is dropped (DECISIONS.md A4);
 3. cross-type overlap: an event whose window overlaps a kept event of a
    higher-ranked type (E1 > E2 > E3 > E4) on the same stock is dropped;
-4. event period: only events with R in [12 May, 18 June 2026] are kept.
+4. event period: only events with R in [13 May, 18 June 2026] are kept (A1).
 
 Every candidate, kept or not, is retained with a `status` so drops and overlaps
 can be counted. The full candidate list (before any drop, and with both possible
@@ -22,7 +22,7 @@ means for noise sessions and unexplained moves.
 from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -157,7 +157,7 @@ def build_e4(insider: pd.DataFrame, cal: Calendar) -> pd.DataFrame:
     i["R"] = [cal.first_on_or_after(pd.Timestamp(ts).date()) for ts in i["start_date"]]
     return pd.DataFrame({"ticker": i["ticker"], "type": "E4", "R": i["R"], "R_alt": None,
                          "event_time": pd.NaT, "direction": np.where(i["kind"] == "purchase", 1, -1),
-                         "kind": i["kind"]})
+                         "kind": i["kind"], "shares": i["shares"]})
 
 
 # --------------------------------------------------------------------------- windows and overlaps
@@ -184,10 +184,18 @@ def _overlaps(a_b, a_a, b_b, b_a) -> bool:
     return (a_b < b_a) and (b_b < a_a)
 
 
+def cluster_direction(event_type: str, members: pd.DataFrame) -> int:
+    """Net direction of a same-type cluster: E4 by signed shares, otherwise the majority."""
+    if event_type == "E4":
+        return int(np.sign((members["direction"] * members["shares"].fillna(0)).sum()))
+    return int(np.sign(members["direction"].sum()))
+
+
 def resolve(cands: pd.DataFrame, start: date = EVENT_START, end: date = EVENT_END) -> pd.DataFrame:
-    """Apply the drop and overlap rules; returns every candidate with a `status`:
-    kept | no_time | no_direction | no_window | same_type_overlap | same_type_conflict |
-    overlap_<higher type> | outside_period. `overlaps_dropped` on a kept event lists the
+    """Apply the drop, collapse and overlap rules; returns every candidate with a `status`:
+    kept | no_time | no_window | no_direction | e1_reaction_session | collapsed_into |
+    cluster_tie | overlap_<higher type> | outside_period. A cluster's earliest member carries
+    the cluster (`n_members`, net `direction`); `overlaps_dropped` on a kept event lists the
     lower-ranked events it displaced."""
     ev = cands.copy()
     ev["status"] = "pending"
@@ -197,30 +205,42 @@ def resolve(cands: pd.DataFrame, start: date = EVENT_START, end: date = EVENT_EN
     ev.loc[(ev["status"] == "pending") & (ev["direction"] == 0), "status"] = "no_direction"
     ev["overlaps_dropped"] = ""
 
-    # Same-type overlap, greedy in time order, with a conflict check.
-    for (tk, ty), g in ev[ev["status"] == "pending"].groupby(["ticker", "type"]):
-        g = g.sort_values(["before_ts", "after_ts"])
-        kept: list = []
-        for idx, row in g.iterrows():
-            if any(_overlaps(row.before_ts, row.after_ts, ev.at[k, "before_ts"], ev.at[k, "after_ts"])
-                   for k in kept):
-                ev.at[idx, "status"] = "same_type_overlap"
-            else:
-                kept.append(idx)
-        for k in kept:
-            opp = g[(g["direction"] == -ev.at[k, "direction"])]
-            if any(_overlaps(ev.at[k, "before_ts"], ev.at[k, "after_ts"], o.before_ts, o.after_ts)
-                   for o in opp.itertuples()):
-                ev.at[k, "status"] = "same_type_conflict"
-            else:
-                ev.at[k, "status"] = "type_kept"
-
     # E2 sessions that are E1 reaction sessions are not E2 events (definition, not overlap).
     is_e1 = (ev["type"] == "E1") & (ev["status"] != "no_time")
     e1R = set(zip(ev.loc[is_e1, "ticker"], ev.loc[is_e1, "R"]))
-    m = (ev["type"] == "E2") & (ev["status"] == "type_kept") & \
+    m = (ev["type"] == "E2") & (ev["status"] == "pending") & \
         pd.Series([(t, R) in e1R for t, R in zip(ev["ticker"], ev["R"])], index=ev.index)
     ev.loc[m, "status"] = "e1_reaction_session"
+
+    # Same-type overlaps collapse into one event at the earliest member (DECISIONS.md A4).
+    ev["n_members"] = 1
+    ev["cluster_last_R"] = ev["R"]
+    for (tk, ty), g in ev[ev["status"] == "pending"].groupby(["ticker", "type"]):
+        g = g.sort_values(["before_ts", "after_ts"])
+        clusters, cur, cur_end = [], [], None
+        for idx, row in g.iterrows():
+            if cur and row.before_ts < cur_end:          # overlaps some member (sorted by start)
+                cur.append(idx)
+                cur_end = max(cur_end, row.after_ts)
+            else:
+                if cur:
+                    clusters.append(cur)
+                cur, cur_end = [idx], row.after_ts
+        if cur:
+            clusters.append(cur)
+        for c in clusters:
+            anchor = c[0]
+            ev.at[anchor, "status"] = "type_kept"
+            if len(c) == 1:
+                continue
+            members = ev.loc[c]
+            net = cluster_direction(ty, members)
+            ev.loc[c[1:], "status"] = "collapsed_into"
+            ev.at[anchor, "n_members"] = len(c)
+            ev.at[anchor, "cluster_last_R"] = max(members["R"])
+            ev.at[anchor, "direction"] = net
+            if net == 0:
+                ev.at[anchor, "status"] = "cluster_tie"
 
     # Cross-type overlap: higher rank wins.
     for tk, g in ev[ev["status"] == "type_kept"].groupby("ticker"):
@@ -243,10 +263,12 @@ def resolve(cands: pd.DataFrame, start: date = EVENT_START, end: date = EVENT_EN
     return ev
 
 
-def event_sessions(cands: pd.DataFrame) -> dict[str, set]:
-    """Per ticker, every session that is (or may be) a reaction session of any candidate."""
+def event_sessions(cands: pd.DataFrame, types: tuple[str, ...] | None = None) -> dict[str, set]:
+    """Per ticker, every session that is (or may be) a reaction session of any candidate
+    (of the given types; all types if None)."""
     out: dict[str, set] = {}
-    for t, R, Ra in zip(cands["ticker"], cands["R"], cands["R_alt"]):
+    c = cands if types is None else cands[cands["type"].isin(types)]
+    for t, R, Ra in zip(c["ticker"], c["R"], c["R_alt"]):
         s = out.setdefault(t, set())
         if R is not None and not pd.isna(R):
             s.add(R)

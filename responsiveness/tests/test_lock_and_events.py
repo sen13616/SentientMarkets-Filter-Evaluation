@@ -124,13 +124,31 @@ def test_cross_type_overlap_keeps_higher_rank():
     assert r.loc[1, "overlaps_dropped"] == "E4;"
 
 
-def test_same_type_overlap_and_conflict():
-    ev = _cands([{"ticker": "X", "type": "E4", "R": date(2026, 6, 1), "direction": -1},
-                 {"ticker": "X", "type": "E4", "R": date(2026, 6, 2), "direction": -1},
-                 {"ticker": "Z", "type": "E3", "R": date(2026, 6, 1), "direction": 1},
-                 {"ticker": "Z", "type": "E3", "R": date(2026, 6, 1), "direction": -1}])
+def test_same_type_overlaps_collapse_with_net_direction():
+    ev = _cands([
+        # X: a chain of insider trades 1, 2, 3 June (each overlaps the next): one cluster at 1 June;
+        # net shares = -100 - 50 + 400 = +250 -> up.
+        {"ticker": "X", "type": "E4", "R": date(2026, 6, 1), "direction": -1, "shares": 100.0},
+        {"ticker": "X", "type": "E4", "R": date(2026, 6, 2), "direction": -1, "shares": 50.0},
+        {"ticker": "X", "type": "E4", "R": date(2026, 6, 3), "direction": 1, "shares": 400.0},
+        # Z: one upgrade and one downgrade on the same day: a tie, dropped.
+        {"ticker": "Z", "type": "E3", "R": date(2026, 6, 1), "direction": 1, "shares": np.nan},
+        {"ticker": "Z", "type": "E3", "R": date(2026, 6, 1), "direction": -1, "shares": np.nan},
+        # W: two upgrades and a downgrade within one window: majority up.
+        {"ticker": "W", "type": "E3", "R": date(2026, 6, 8), "direction": 1, "shares": np.nan},
+        {"ticker": "W", "type": "E3", "R": date(2026, 6, 8), "direction": 1, "shares": np.nan},
+        {"ticker": "W", "type": "E3", "R": date(2026, 6, 9), "direction": -1, "shares": np.nan}])
     r = events.resolve(ev)
-    assert list(r["status"]) == ["kept", "same_type_overlap", "same_type_conflict", "same_type_overlap"]
+    assert list(r["status"]) == ["kept", "collapsed_into", "collapsed_into", "cluster_tie", "collapsed_into",
+                                 "kept", "collapsed_into", "collapsed_into"]
+    assert (r.loc[0, "direction"], r.loc[0, "n_members"], r.loc[0, "R"]) == (1, 3, date(2026, 6, 1))
+    assert (r.loc[5, "direction"], r.loc[5, "n_members"]) == (1, 3)
+
+
+def test_event_period_starts_13_may():
+    ev = _cands([{"ticker": "X", "type": "E3", "R": date(2026, 5, 12), "direction": 1},
+                 {"ticker": "Y", "type": "E3", "R": date(2026, 5, 13), "direction": 1}])
+    assert list(events.resolve(ev)["status"]) == ["outside_period", "kept"]
 
 
 def test_e2_on_e1_reaction_session_is_not_e2_and_outside_period_flagged():

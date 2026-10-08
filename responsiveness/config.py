@@ -30,9 +30,11 @@ DATA_START = date(2026, 5, 12)
 DATA_END = date(2026, 6, 22)
 LOCK_CUTOFF = pd.Timestamp("2026-06-22 23:59:59.999999", tz="UTC")
 
-# Event period: reaction sessions R in [EVENT_START, EVENT_END] (section 3).
-EVENT_START = date(2026, 5, 12)
+# Event period: reaction sessions R in [EVENT_START, EVENT_END] (section 3; DECISIONS.md A1).
+EVENT_START = date(2026, 5, 13)
 EVENT_END = date(2026, 6, 18)
+# Narrative model change: no before reading or noise change may reach back before this day (A1).
+MODEL_CHANGE = date(2026, 5, 12)
 
 # Daily state: last tick stamped before 21:45 UTC on the session (section 4).
 STATE_CUTOFF = time(21, 45)
@@ -46,15 +48,24 @@ PLUMBING_INDEX = "influencer"       # index of interest for E3 and E4
 
 # Events (section 4).
 EVENT_TYPES = ("E1", "E2", "E3", "E4")   # also the overlap priority order
+# Event groups reported (A2): each is a cell for every index.
+# group -> (event types, direction filter or None)
+GROUPS = {"E1": (("E1",), None), "E2": (("E2",), None), "E1+E2": (("E1", "E2"), None),
+          "E3": (("E3",), None), "E4": (("E4",), None), "E4 purchase": (("E4",), 1),
+          "E4 sale": (("E4",), -1)}
+PRIMARY_GROUP = "E1+E2"
 ATR_N = 14
 E2_ATR_MULT = 3.0
 
 # Moves (section 4) and the unexplained-move rule (section 5).
 MOVE_UNITS = 1.0
 LARGE_MOVE_UNITS = 2.0
-NOISE_EXCLUSION = 2            # noise sessions are > 2 sessions from any event
+NOISE_EXCLUSION = 2            # noise sessions are > 2 sessions from any E1-E3 event (A3)
+NOISE_EXCLUDE_TYPES = ("E1", "E2", "E3")
+MIN_NOISE_CHANGES = 10         # A3
 UNEXPLAINED_EVENT_RADIUS = 1
 UNEXPLAINED_PRICE_MULT = 2.0
+TYPICAL_MOVE_SESSIONS = 120    # median |market-adjusted return| over the 120 sessions ending 12 May (M6)
 
 # Inference (section 6).
 SEED = 20260512
@@ -62,8 +73,7 @@ N_PLACEBO = 20
 N_PERM = 1000
 N_BOOT = 2000
 ALPHA = 0.05
-PRIMARY_MIN_ACCURACY = 0.60
-PRIMARY_MAX_UNEXPLAINED = 0.50
+PRIMARY_MAX_UNEXPLAINED = 0.50   # primary rule as amended (A6): response p, signed-move p, this
 
 # Power estimate (Phase 0).
 POWER_TARGET = 0.80

@@ -19,7 +19,7 @@ import pandas as pd
 from filter_eval import ingest, prices as fe_prices
 from filter_eval.holdout import HoldoutViolation, assert_date_locked, assert_locked, drop_after_lock
 
-from .config import DATA_END, EXO_WEIGHTS, LOCK_CUTOFF, PRICE_FILE, TICK_DIR, UNIVERSE_FILE
+from .config import DATA_END, EXO_WEIGHTS, PRICE_FILE, TICK_DIR, UNIVERSE_FILE
 
 __all__ = ["HoldoutViolation", "assert_locked", "drop_after_lock", "assert_date_locked",
            "universe", "sessions", "load_ticks", "load_prices", "add_score_exo", "file_hash"]
