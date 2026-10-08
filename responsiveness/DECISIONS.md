@@ -285,3 +285,19 @@ RESULTS.md, the renderer was changed in three ways:
 No rule, threshold, test or number changed. *Reason:* the first render's list of
 significant cells hid that the macro/E3 result goes against the events' direction. Approved
 by the researcher.
+
+**M13 Sensitivity: unexplained moves without E4 (reported only).** The unexplained-move
+rate is recomputed counting only E1, E2 and E3 candidates and unusual price moves as
+explanations, leaving out E4. Everything else follows M6. Both rates are reported side by
+side (`results/unexplained_sensitivity.csv`). The primary verdict uses the M6 rate and does
+not change. *Reason (researcher):* insider sales are frequent and the score does not respond
+to them, so counting them as explanations may flatter the rate.
+
+**M14 Added limitations.** Three limitations requested by the researcher after reviewing the
+results are added to RESULTS.md, with their numbers read from the result files:
+- price and narrative: E1 and E2 directions come from price, so the narrative response may
+  partly restate it;
+- the size of the average response relative to a label band;
+- the macro channel's wrong-way response to rating changes.
+
+*Reason (researcher):* to state plainly what the pilot does and does not show.

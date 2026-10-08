@@ -73,6 +73,10 @@ def main() -> None:
     counts_md = (RESULTS / "event_counts.md").read_text()
     decisions_md = (PKG / "DECISIONS.md").read_text()
     ledger = pd.read_csv(LEDGER)
+    sens_path = RESULTS / "unexplained_sensitivity.csv"
+    sens = pd.read_csv(sens_path).set_index("index") if sens_path.exists() else None
+    sens_txt = (f"; {pct(sens.loc[PRIMARY_INDEX, 'rate (E4 not counted)'])} if E4 is not counted as an "
+                "explanation (sensitivity, reported only)") if sens is not None else ""
 
     prim = cells[cells["primary"]].iloc[0]
     up = un[un["index"] == PRIMARY_INDEX].iloc[0]
@@ -155,7 +159,7 @@ def main() -> None:
          f"| {num(prim['null_signed_mean'], sign=True)} | {pv(prim['p_signed'])} | {mde_sig_pts:.2f} points "
          f"({mde_sig_u:.2f} noise units) | p < 0.05: {fmt_cond('signed-move p < 0.05')} |",
          f"| unexplained-move rate | {pct(up['rate'])} ({int(up['unexplained'])} of {int(up['large'])} large "
-         f"moves) | not computed | n/a | n/a | not estimated (needs changes around events) | < 50%: "
+         f"moves{sens_txt}) | not computed | n/a | n/a | not estimated (needs changes around events) | < 50%: "
          f"{fmt_cond('unexplained-move rate < 50%')} |",
          f"| direction accuracy | {pct(prim['direction_accuracy'])} ({int(prim['right'])} of {int(prim['moves'])} "
          f"moves) | {ci(prim['accuracy_ci_lo'], prim['accuracy_ci_hi'])} | n/a | {pv(prim['p_direction_binom'])} "
@@ -210,6 +214,17 @@ def main() -> None:
           ut.rename(columns={"large": "large moves", "unexplained": "unexplained", "rate": "unexplained rate",
                              "event_only": "explained by event only", "price_only": "by price only",
                              "both": "by both"}).drop(columns=["contaminated"]).to_markdown(index=False), ""]
+    if sens is not None:
+        st_ = sens.reset_index()
+        st_["index"] = st_["index"].map(ix_label)
+        for c in ("rate (all events)", "rate (E4 not counted)"):
+            st_[c] = st_[c].map(pct)
+        L += ["### Sensitivity: E4 not counted as an explanation (reported only)", "",
+              "Insider trades are frequent, and the score does not respond to insider sales (section 6), so "
+              "counting them as explanations may flatter the rate. Here only E1, E2 and E3 events and unusual "
+              "price moves explain a large move (DECISIONS.md M13). The primary verdict uses the first rate and "
+              "does not change.", "",
+              st_.drop(columns=["contaminated"]).to_markdown(index=False), ""]
 
     fam = cells[~cells["primary"] & ~cells["contaminated"]]
     L += ["## 8. Multiple comparisons", "",
@@ -239,7 +254,20 @@ def main() -> None:
     trunc = re.search(r"Insider coverage truncated: (\d+)", counts_md)
     reach = cluster_cell(counts_md, "E4 insider", "clusters reaching past R+1")
     e4n = cells[(cells["index"] == PLUMBING_INDEX) & (cells["group"] == "E4")].iloc[0]
+    mac = cells[(cells["index"] == "macro") & (cells["group"] == "E3")].iloc[0]
     L += ["## 9. Limitations observed", "",
+          "- **Price and narrative.** E1 and E2 directions come from the stock's price reaction. Coverage of a "
+          "large move often reports the move itself, so the narrative channel's response may partly restate "
+          "price. The result shows the score responds to real events; it does not show that the score carries "
+          "information independent of price.",
+          f"- **Size of the response.** In the primary cell the signed average move is "
+          f"{num(prim['avg_signed_move'])} points on a 0 to 100 scale, {prim['avg_signed_move'] / 20:.2f} of one "
+          f"20-point label band, and the score moved beyond noise after {pct(prim['response_rate'], 0)} of "
+          "events.",
+          f"- **Macro on rating changes.** The macro channel's response to rating changes goes against the "
+          f"event direction (direction accuracy {pct(mac['direction_accuracy'])}, q = "
+          f"{pv(mac['p_direction_binom_bh'])}). A likely cause is that rating changes follow sector moves; this "
+          "was not tested.",
           f"- **Power.** This is a pilot. The primary cell has {int(prim['n'])} events; see the detectable "
           "effects in section 5. E2 has fewer than 30 events. The power estimate treats events as independent, "
           "but they cluster on news days.",
