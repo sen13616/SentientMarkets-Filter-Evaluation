@@ -245,3 +245,30 @@ cannot inflate it.
 
 *Reason:* the market channel gets no weight (BRIEF.md section 3), and families keep tests of
 different questions from diluting each other.
+
+**M8 Random streams per cell.** Each cell draws its relabellings, bootstrap and placebo
+dates from its own generator, seeded with (20260512, index position, group position) in the
+order of `config.INDICES` and `config.GROUPS`. *Reason:* any single cell can be rerun on its
+own and give the same numbers.
+
+## 2026-10-08 (Phase 2 additions, set before the run)
+
+**M9 The response test is slightly conservative.** The response p-value keeps the brief's
+formula, p = (1 + #relabellings with a rate at least as high) / 1,001. The response rate
+moves in steps of 1/N, and ties count as "at least as high", so the test rejects a little
+less often than its nominal level. On synthetic nulls (500 replications,
+`results/phase1_synthetic.md`) 3.6% of p-values fell below 0.05, and a KS test against
+uniform gave p = 0.008. The signed-move test, a continuous statistic, gave 4.8% and was
+consistent with uniform. *Reason (researcher):* keep the specified formula and state the
+property.
+
+**M10 Saved nulls.** Every cell's 1,000 relabelled response rates and signed average moves,
+and its 2,000 bootstrap draws (response rate, direction accuracy, signed average move), are
+written to `results/nulls/relabel.csv.gz` and `results/nulls/bootstrap.csv.gz`. Gzipped CSV
+is used because the repository ignores `*.parquet`. *Reason (researcher):* later questions
+can be answered from files without rerunning.
+
+**M11 Detectable effects next to results.** RESULTS.md shows each primary-cell result next
+to its minimum detectable effect from the Phase 0 power estimate (`results/power.csv`,
+computed at commit 095f4c9 before any response). *Reason (researcher):* a reader can see
+whether a null result was ever likely to be anything else.

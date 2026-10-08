@@ -54,9 +54,16 @@ def test_null_p_values_are_roughly_uniform():
         r = relabel_tests(cell, D, elig, sigma, n_perm=199, rng=rng)
         pr.append(r["p_response"])
         ps.append(r["p_signed"])
-    for p in (np.array(pr), np.array(ps)):
-        assert stats.kstest(p, "uniform").pvalue > 0.01
-        assert 0.01 <= (p < 0.05).mean() <= 0.10
+    pr, ps = np.array(pr), np.array(ps)
+    # Signed move: a continuous statistic, so p is close to uniform.
+    assert stats.kstest(ps, "uniform").pvalue > 0.01
+    # Both tests are valid (false-positive rate at most alpha, within simulation error) and not
+    # degenerate. The response rate is discrete (steps of 1/N) and ties count as ">= observed",
+    # so test 1 is slightly conservative rather than exactly uniform.
+    for p in (pr, ps):
+        for alpha in (0.05, 0.10):
+            assert (p < alpha).mean() <= alpha + 0.03
+        assert (p < 0.05).mean() >= 0.01
         assert 0.4 <= np.median(p) <= 0.6
 
 
@@ -206,3 +213,18 @@ def test_primary_verdict_needs_all_three():
     assert primary_verdict(0.01, 0.01, 0.4)["pass"] is True
     assert primary_verdict(0.01, 0.01, 0.5)["pass"] is False
     assert primary_verdict(0.06, 0.01, 0.1)["pass"] is False
+
+
+def test_build_cell_measures_and_counts_exclusions():
+    from responsiveness.cells import build_cell
+    sessions = [date(2026, 6, d) for d in (1, 2, 3, 4, 5)]
+    ev = pd.DataFrame({"ticker": ["A", "A", "B", "C"], "R": [sessions[1], sessions[3], sessions[2], sessions[2]],
+                       "direction": [1, -1, 1, 1], "k": [0, 1, 2, 3]})
+    bef = np.array([[10.0], [20.0], [np.nan], [5.0]])
+    aft = np.array([[13.0], [15.0], [9.0], [6.0]])
+    sd = np.array([[2.0, 2.0, np.nan]])                       # C has no noise unit
+    m = build_cell(ev, bef, aft, 0, sd, ["A", "B", "C"], sessions)
+    assert m.excluded == {"no noise unit": 1, "no before reading": 1, "no after reading": 0}
+    assert list(m.cell.change) == [3.0, -5.0] and list(m.cell.session) == [1, 3]
+    s = scorecard(m.cell)
+    assert (s["moves"], s["right"], s["avg_signed_move"]) == (2, 2, 4.0)

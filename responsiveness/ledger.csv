@@ -4,3 +4,5 @@ timestamp_utc,test_id,config_hash,code_commit,data_hash,seed,status,headline,not
 2026-10-07T10:09:39+00:00,phase0_power,97a44b4d0ff8,uncommitted,f45f1575e750,20260512,ok,"{""N"": 76, ""crit"": 0.4342, ""mde_rate"": 0.49, ""p0"": 0.324}",
 2026-10-08T10:29:21+00:00,phase0_event_counts,97a44b4d0ff8,9c66711,f45f1575e750,20260512,ok,"{""E1"": 57, ""E2"": 21, ""E3"": 122, ""E4"": 597}",
 2026-10-08T10:30:02+00:00,phase0_power,97a44b4d0ff8,9c66711,f45f1575e750,20260512,ok,"{""N"": 76, ""crit"": 0.4342, ""mde_rate"": 0.49, ""p0"": 0.324}",
+2026-10-08T10:38:48+00:00,phase0_event_counts,fb73e84cff27,095f4c9,f45f1575e750,20260512,ok,"{""E1"": 52, ""E2"": 21, ""E3"": 120, ""E4"": 547}",amended rules (DECISIONS.md A1-A4)
+2026-10-08T10:39:07+00:00,phase0_power,fb73e84cff27,095f4c9,f45f1575e750,20260512,ok,"{""N"": 73, ""crit_response"": 0.411, ""mde_rate"": 0.47, ""mde_signed_pts"": 2.95, ""mde_signed_units"": 0.32, ""p0"": 0.3223}",amended rules (DECISIONS.md A1-A6)

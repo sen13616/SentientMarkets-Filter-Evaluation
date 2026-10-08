@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- <venv>/bin/python
+rootdir: <repo>
+plugins: platformdirs-4.12.3
+collecting ... collected 32 items
+
+responsiveness/tests/test_inference.py::test_null_p_values_are_roughly_uniform PASSED [  3%]
+responsiveness/tests/test_inference.py::test_null_direction_p_values_roughly_uniform PASSED [  6%]
+responsiveness/tests/test_inference.py::test_planted_response_detected_in_right_direction PASSED [  9%]
+responsiveness/tests/test_inference.py::test_planted_wrong_way_response PASSED [ 12%]
+responsiveness/tests/test_inference.py::test_scorecard_rates_add_up PASSED [ 15%]
+responsiveness/tests/test_inference.py::test_zero_change_is_never_a_move PASSED [ 18%]
+responsiveness/tests/test_inference.py::test_after_close_release_before_and_after_readings PASSED [ 21%]
+responsiveness/tests/test_inference.py::test_date_only_event_uses_2145_cutoff_on_r_minus_1 PASSED [ 25%]
+responsiveness/tests/test_inference.py::test_before_reading_may_not_predate_model_change PASSED [ 28%]
+responsiveness/tests/test_inference.py::test_noise_unit_requires_ten_changes PASSED [ 31%]
+responsiveness/tests/test_inference.py::test_placebo_draws_only_from_pool_and_at_most_20 PASSED [ 34%]
+responsiveness/tests/test_inference.py::test_unexplained_counts PASSED   [ 37%]
+responsiveness/tests/test_inference.py::test_bh_adjust_matches_reference PASSED [ 40%]
+responsiveness/tests/test_inference.py::test_primary_verdict_needs_all_three PASSED [ 43%]
+responsiveness/tests/test_inference.py::test_build_cell_measures_and_counts_exclusions PASSED [ 46%]
+responsiveness/tests/test_lock_and_events.py::test_sessions_refuse_end_after_lock PASSED [ 50%]
+responsiveness/tests/test_lock_and_events.py::test_tick_loader_refuses_post_lock_rows PASSED [ 53%]
+responsiveness/tests/test_lock_and_events.py::test_price_loader_refuses_post_lock_bars PASSED [ 56%]
+responsiveness/tests/test_lock_and_events.py::test_event_fetch_drops_post_lock_rows_before_writing PASSED [ 59%]
+responsiveness/tests/test_lock_and_events.py::test_earnings_reaction_session PASSED [ 62%]
+responsiveness/tests/test_lock_and_events.py::test_window_before_uses_earlier_of_release_and_cutoff PASSED [ 65%]
+responsiveness/tests/test_lock_and_events.py::test_cross_type_overlap_keeps_higher_rank PASSED [ 68%]
+responsiveness/tests/test_lock_and_events.py::test_same_type_overlaps_collapse_with_net_direction PASSED [ 71%]
+responsiveness/tests/test_lock_and_events.py::test_event_period_starts_13_may PASSED [ 75%]
+responsiveness/tests/test_lock_and_events.py::test_e2_on_e1_reaction_session_is_not_e2_and_outside_period_flagged PASSED [ 78%]
+responsiveness/tests/test_lock_and_events.py::test_e2_threshold_uses_previous_session_atr PASSED [ 81%]
+responsiveness/tests/test_lock_and_events.py::test_insider_kinds PASSED  [ 84%]
+responsiveness/tests/test_lock_and_events.py::test_wilder_atr_constant_range PASSED [ 87%]
+responsiveness/tests/test_states.py::test_state_is_last_tick_before_2145_on_the_day PASSED [ 90%]
+responsiveness/tests/test_states.py::test_state_needs_a_tick_on_that_day PASSED [ 93%]
+responsiveness/tests/test_states.py::test_before_reading_any_day_and_strictly_before PASSED [ 96%]
+responsiveness/tests/test_states.py::test_tick_unit_does_not_matter PASSED [100%]
+
+============================== 32 passed in 4.14s ==============================

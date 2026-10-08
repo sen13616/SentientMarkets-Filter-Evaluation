@@ -104,10 +104,11 @@ def binom_p(right: int, moves: int) -> float:
 
 
 def date_bootstrap(cell: Cell, dates: np.ndarray, n_boot: int, rng: np.random.Generator) -> dict:
-    """95% percentile intervals from resampling the cell's distinct event dates (M4)."""
-    nan = {k: (np.nan, np.nan) for k in ("response_rate", "direction_accuracy", "avg_signed_move")}
+    """95% percentile intervals from resampling the cell's distinct event dates (M4).
+    `draws` holds every bootstrap value (n_boot x 3: response, accuracy, signed move)."""
+    keys = ("response_rate", "direction_accuracy", "avg_signed_move")
     if cell.n == 0:
-        return nan
+        return {**{k: (np.nan, np.nan) for k in keys}, "draws": np.full((0, 3), np.nan)}
     moved, right, _ = classify(cell.change, cell.sigma, cell.direction)
     uniq, inv = np.unique(np.asarray(dates), return_inverse=True)
     G = len(uniq)
@@ -118,7 +119,8 @@ def date_bootstrap(cell: Cell, dates: np.ndarray, n_boot: int, rng: np.random.Ge
     with np.errstate(invalid="ignore", divide="ignore"):
         resp, acc, avg = m_b / n_b, np.where(m_b > 0, (W @ r_d) / m_b, np.nan), (W @ s_d) / n_b
     ci = lambda x: tuple(np.nanpercentile(x, [2.5, 97.5])) if np.isfinite(x).any() else (np.nan, np.nan)
-    return {"response_rate": ci(resp), "direction_accuracy": ci(acc), "avg_signed_move": ci(avg)}
+    return {"response_rate": ci(resp), "direction_accuracy": ci(acc), "avg_signed_move": ci(avg),
+            "draws": np.column_stack([resp, acc, avg])}
 
 
 def placebo(cell: Cell, D: np.ndarray, pool_mask: np.ndarray, sigma_by_stock: np.ndarray, n_placebo: int,

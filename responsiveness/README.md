@@ -3,7 +3,7 @@
 Work in progress; the full README is written in Phase 3. The question, rules and method are
 in [BRIEF.md](BRIEF.md), and the interpretive choices are in [DECISIONS.md](DECISIONS.md).
 
-## Reproducing Phase 0
+## Reproducing the run
 
 The sentiment tick cache and daily price bars come from the first experiment's data build
 (`scripts/pull_sentiment.py`, `scripts/pull_prices.py` at the repository root). They are not
@@ -15,6 +15,8 @@ python -m responsiveness.scripts.fetch_events     # yfinance events -> $SM_DATA_
 python -m responsiveness.scripts.event_counts     # results/event_counts.md, event_counts.csv
 python -m responsiveness.scripts.power            # results/power.md, power.csv
 python -m pytest responsiveness/tests             # synthetic-data tests
+python -m responsiveness.scripts.synthetic_summary  # results/phase1_synthetic.md (synthetic checks)
+python -m responsiveness.scripts.run_cells        # Phase 2: every cell, ledgered (results/cells.csv)
 ```
 
 yfinance serves current data, so a later download can differ from the one used here. The

@@ -14,7 +14,8 @@ FIELDS = ["timestamp_utc", "test_id", "config_hash", "code_commit", "data_hash",
           "headline", "note"]
 CODE_PATHS = ["responsiveness/__init__.py", "responsiveness/config.py", "responsiveness/data.py",
               "responsiveness/sources.py", "responsiveness/market.py", "responsiveness/events.py",
-              "responsiveness/measure.py", "responsiveness/pipeline.py", "responsiveness/inference.py", "responsiveness/ledger.py",
+              "responsiveness/measure.py", "responsiveness/pipeline.py", "responsiveness/cells.py",
+              "responsiveness/inference.py", "responsiveness/ledger.py",
               "responsiveness/scripts", "responsiveness/tests", "filter_eval"]
 
 
