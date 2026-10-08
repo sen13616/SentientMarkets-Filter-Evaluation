@@ -1,0 +1,4 @@
+timestamp_utc,test_id,config_hash,code_commit,data_hash,seed,status,headline,note
+2026-10-07T10:06:09+00:00,phase0_event_counts,97a44b4d0ff8,uncommitted,f45f1575e750,20260512,ok,"{""E1"": 57, ""E2"": 21, ""E3"": 122, ""E4"": 597}",
+2026-10-07T10:08:37+00:00,phase0_power,97a44b4d0ff8,uncommitted,f45f1575e750,20260512,ok,"{""N"": 76, ""crit"": 0.4342, ""mde_rate"": 0.49, ""p0"": 0.324}",
+2026-10-07T10:09:39+00:00,phase0_power,97a44b4d0ff8,uncommitted,f45f1575e750,20260512,ok,"{""N"": 76, ""crit"": 0.4342, ""mde_rate"": 0.49, ""p0"": 0.324}",
