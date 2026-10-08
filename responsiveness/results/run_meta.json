@@ -1,0 +1,25 @@
+{
+ "run_utc": "2026-10-08T10:56:14+00:00",
+ "code_commit": "5a9097a",
+ "config_hash": "fb73e84cff27",
+ "data_hash": "f45f1575e750",
+ "seed": 20260512,
+ "n_perm": 1000,
+ "n_boot": 2000,
+ "n_placebo": 20,
+ "cells": 42,
+ "secondary_cells_in_bh": 34,
+ "primary": {
+  "index": "score_exo",
+  "group": "E1+E2",
+  "conditions": {
+   "response p < 0.05": true,
+   "signed-move p < 0.05": true,
+   "unexplained-move rate < 50%": true
+  },
+  "pass": true,
+  "p_response": 0.024975024975024976,
+  "p_signed": 0.000999000999000999,
+  "unexplained_rate": 0.3241650294695481
+ }
+}

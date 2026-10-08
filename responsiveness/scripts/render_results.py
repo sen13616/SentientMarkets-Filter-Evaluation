@@ -28,7 +28,11 @@ def num(x, d=2, sign=False):
 
 
 def pv(x):
-    return "n/a" if pd.isna(x) else (f"{x:.3f}" if x >= 0.001 else f"{x:.1e}")
+    if pd.isna(x):
+        return "n/a"
+    if abs(x - 1 / 1001) < 1e-9:
+        return "0.001 (minimum possible)"
+    return f"{x:.3f}" if x >= 0.001 else f"{x:.1e}"
 
 
 def ci(lo, hi, f=pct):
@@ -87,7 +91,7 @@ def main() -> None:
          f"seasons, so the primary cell holds only {int(prim['n'])} events. Before any response was computed, "
          f"the power estimate showed this run could detect, with 80% power, a response rate of about "
          f"{pct(mde_resp)} (against a placebo rate of {pp['placebo rate p0']}) and a signed average move of about "
-         f"{mde_sig_u:.2f} noise units ({mde_sig_pts:.1f} points). Real effects smaller than that would usually "
+         f"{mde_sig_u:.2f} noise units ({mde_sig_pts:.2f} points). Real effects smaller than that would usually "
          "be missed, so a null result here is weak evidence of no effect. The definitive run is planned on the "
          "October 2026 earnings season with the same code and rules.", "",
          f"**Primary cell ({PRIMARY_INDEX}, E1 and E2 pooled): {verdict}.** Response p = {pv(pr['p_response'])} "
@@ -217,9 +221,20 @@ def main() -> None:
                       ("p_direction_binom", "direction (exact binomial)")):
         x = fam[col].dropna()
         L.append(f"| {name} | {len(x)} | {int((x < 0.05).sum())} | {int((fam[col + '_bh'] < 0.05).sum())} |")
-    hits = fam[(fam[["p_response_bh", "p_signed_bh", "p_direction_binom_bh"]] < 0.05).any(axis=1)]
-    L += ["", "Secondary cells with any BH q < 0.05: " +
-          (", ".join(f"{r['index']} / {r['group']}" for _, r in hits.iterrows()) if len(hits) else "none") + ".", ""]
+    sig = []
+    for _, r in fam.iterrows():
+        for col, name, how in (("p_response", "response", lambda r: "score moved more often than on random dates"),
+                               ("p_signed", "signed move", lambda r: "in the events' direction"),
+                               ("p_direction_binom", "direction",
+                                lambda r: "in the events' direction" if r["direction_accuracy"] > 0.5
+                                else "**against the events' direction**")):
+            if r[col + "_bh"] < 0.05:
+                sig.append(f"| {r['index']} | {r['group']} | {name} | {pv(r[col])} | {pv(r[col + '_bh'])} | {how(r)} |")
+    L += ["", "Every secondary result with BH q < 0.05. The response and signed-move tests are one-sided, so a "
+          "significant result there is an excess of moves, or a move in the events' direction. The direction "
+          "test is two-sided and can be significant in either direction.", "",
+          "| index | events | test | p | q | direction |", "|---|---|---|---|---|---|"] + \
+        (sig if sig else ["| none | | | | | |"]) + [""]
 
     trunc = re.search(r"Insider coverage truncated: (\d+)", counts_md)
     reach = cluster_cell(counts_md, "E4 insider", "clusters reaching past R+1")

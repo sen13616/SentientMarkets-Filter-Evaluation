@@ -272,3 +272,16 @@ can be answered from files without rerunning.
 to its minimum detectable effect from the Phase 0 power estimate (`results/power.csv`,
 computed at commit 095f4c9 before any response). *Reason (researcher):* a reader can see
 whether a null result was ever likely to be anything else.
+
+## 2026-10-08 (after the Phase 2 run)
+
+**M12 Presentation-only renderer change after the first render.** After the first render of
+RESULTS.md, the renderer was changed in three ways:
+1. Section 8 lists every secondary result with BH q < 0.05 together with its test and
+   direction, so a significant wrong-way result is as visible as the others.
+2. The banner shows the detectable signed move to two decimals, matching the table.
+3. A p-value equal to 1/1001 is printed as "0.001 (minimum possible)".
+
+No rule, threshold, test or number changed. *Reason:* the first render's list of
+significant cells hid that the macro/E3 result goes against the events' direction. Approved
+by the researcher.
