@@ -399,6 +399,35 @@ to its minimum detectable effect from the Phase 0 power estimate (`results/power
 computed at commit 095f4c9 before any response). *Reason (researcher):* a reader can see
 whether a null result was ever likely to be anything else.
 
+#### 2026-10-08 (after the Phase 2 run)
+
+**M12 Presentation-only renderer change after the first render.** After the first render of
+RESULTS.md, the renderer was changed in three ways:
+1. Section 8 lists every secondary result with BH q < 0.05 together with its test and
+   direction, so a significant wrong-way result is as visible as the others.
+2. The banner shows the detectable signed move to two decimals, matching the table.
+3. A p-value equal to 1/1001 is printed as "0.001 (minimum possible)".
+
+No rule, threshold, test or number changed. *Reason:* the first render's list of
+significant cells hid that the macro/E3 result goes against the events' direction. Approved
+by the researcher.
+
+**M13 Sensitivity: unexplained moves without E4 (reported only).** The unexplained-move
+rate is recomputed counting only E1, E2 and E3 candidates and unusual price moves as
+explanations, leaving out E4. Everything else follows M6. Both rates are reported side by
+side (`results/unexplained_sensitivity.csv`). The primary verdict uses the M6 rate and does
+not change. *Reason (researcher):* insider sales are frequent and the score does not respond
+to them, so counting them as explanations may flatter the rate.
+
+**M14 Added limitations.** Three limitations requested by the researcher after reviewing the
+results are added to RESULTS.md, with their numbers read from the result files:
+- price and narrative: E1 and E2 directions come from price, so the narrative response may
+  partly restate it;
+- the size of the average response relative to a label band;
+- the macro channel's wrong-way response to rating changes.
+
+*Reason (researcher):* to state plainly what the pilot does and does not show.
+
 ## 5. Primary cell in full: `score_exo`, E1 and E2 pooled
 
 73 events on 25 distinct reaction dates; excluded: 0 without a noise unit, 0 without a before reading, 0 without an after reading.
@@ -409,7 +438,7 @@ Each result sits next to the smallest effect this sample could detect with 80% p
 |---|---|---|---|---|---|---|
 | response rate | 43.8% (32 of 73) | 31.1% to 55.7% | 32.2% | 0.025 | 47.0% | p < 0.05: met |
 | signed average move (points) | +4.87 (+0.53 noise units) | +2.33 to +7.38 | +0.07 | 0.001 (minimum possible) | 2.95 points (0.32 noise units) | p < 0.05: met |
-| unexplained-move rate | 32.4% (165 of 509 large moves) | not computed | n/a | n/a | not estimated (needs changes around events) | < 50%: met |
+| unexplained-move rate | 32.4% (165 of 509 large moves; 36.0% if E4 is not counted as an explanation (sensitivity, reported only)) | not computed | n/a | n/a | not estimated (needs changes around events) | < 50%: met |
 | direction accuracy | 68.8% (22 of 32 moves) | 51.7% to 81.5% | n/a | 0.050 (exact binomial vs 50%) | 75.5% at 34 moves | reported only (A6) |
 | wrong-way rate | 13.7% | | | | | reported only |
 | miss rate | 56.2% | | | | | reported only |
@@ -567,6 +596,19 @@ A large move is a two-session change of more than two noise units on an event-pe
 | macro                                   |           862 |           299 | 34.7%              |                        58 |             405 |       100 |
 | market (market-contaminated; no weight) |           516 |            45 | 8.7%               |                         9 |             330 |       132 |
 
+### Sensitivity: E4 not counted as an explanation (reported only)
+
+Insider trades are frequent, and the score does not respond to insider sales (section 6), so counting them as explanations may flatter the rate. Here only E1, E2 and E3 events and unusual price moves explain a large move (DECISIONS.md M13). The primary verdict uses the first rate and does not change.
+
+| index                                   |   large |   unexplained (all events) | rate (all events)   |   unexplained (E4 not counted) | rate (E4 not counted)   |   explained only by E4 |
+|:----------------------------------------|--------:|---------------------------:|:--------------------|-------------------------------:|:------------------------|-----------------------:|
+| score                                   |     538 |                        125 | 23.2%               |                            138 | 25.7%                   |                     13 |
+| score_exo                               |     509 |                        165 | 32.4%               |                            183 | 36.0%                   |                     18 |
+| narrative                               |     496 |                        148 | 29.8%               |                            171 | 34.5%                   |                     23 |
+| influencer                              |    1060 |                        333 | 31.4%               |                            380 | 35.8%                   |                     47 |
+| macro                                   |     862 |                        299 | 34.7%               |                            348 | 40.4%                   |                     49 |
+| market (market-contaminated; no weight) |     516 |                         45 | 8.7%                |                             51 | 9.9%                    |                      6 |
+
 ## 8. Multiple comparisons
 
 Cells examined: 42 (6 indices x 7 event groups). One is primary. The 7 market-channel cells are reported with raw p-values only. Benjamini-Hochberg is applied separately to each test over the remaining 34 secondary cells.
@@ -611,6 +653,9 @@ Every secondary result with BH q < 0.05. The response and signed-move tests are 
 
 ## 9. Limitations observed
 
+- **Price and narrative.** E1 and E2 directions come from the stock's price reaction. Coverage of a large move often reports the move itself, so the narrative channel's response may partly restate price. The result shows the score responds to real events; it does not show that the score carries information independent of price.
+- **Size of the response.** In the primary cell the signed average move is 4.87 points on a 0 to 100 scale, 0.24 of one 20-point label band, and the score moved beyond noise after 44% of events.
+- **Macro on rating changes.** The macro channel's response to rating changes goes against the event direction (direction accuracy 25.0%, q = 0.040). A likely cause is that rating changes follow sector moves; this was not tested.
 - **Power.** This is a pilot. The primary cell has 73 events; see the detectable effects in section 5. E2 has fewer than 30 events. The power estimate treats events as independent, but they cluster on news days.
 - **Insider timing.** E4's reaction session is the transaction date (DECISIONS.md A2). Form 4 filings are public up to two business days later, so the market often cannot trade on an E4 event within its window.
 - **Insider clusters.** Runs of overlapping insider trades collapse into one event measured over the first member's window (A4); 20 clusters have members after that window.
