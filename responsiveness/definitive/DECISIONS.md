@@ -218,3 +218,83 @@ move's sign, so the real estimate of b varies a little more than the relabelled 
 The same table at 200 replications gives 4.5% under every echo. The test is kept as decided
 in P2. RESULTS.md will state this calibration next to Test B's p-value. *Reason:* the
 researcher fixed the design, and the rate is measured, not tuned.
+
+## 2026-10-09 (researcher's decision; before any data from the period exists)
+
+**D14 Freedman-Lane null for Test B, and a pre-registered rule for choosing the primary test.**
+Recorded before the Freedman-Lane test was implemented or run.
+- **The test.** A Freedman-Lane permutation test for b, on the E3 events only:
+  1. fit the reduced model (Δ on the intercept, r, sign(r) and the spline terms, without d);
+  2. permute its residuals across events and add them back to its fitted values;
+  3. refit the full model and record b.
+
+  K = 1,000 permutations, fixed seed; p = (1 + #{b_k ≥ b}) / 1,001. The current
+  random-session relabelling version (P2) is kept as well.
+- **Calibration.** Synthetic, 1,000 replications per scenario, for both versions, written to
+  `results/test_b_calibration.md`. No-effect scenarios: no echo; each of the three echoes
+  (linear, saturating, step); and a date-wide shock common to all events on a date. Power: a
+  planted 1-point effect.
+- **Selection rule (pre-registered).** Freedman-Lane becomes the primary Test B if both hold:
+  - its false-positive rate at the 0.05 level is between 3.6% and 6.4% in every no-effect
+    scenario;
+  - its power at 1 point is at least 90%.
+
+  Otherwise the relabelling version stays primary, with D13. The other version is reported as
+  secondary either way.
+
+*Reason (researcher):* D13 found the relabelling null slightly anti-conservative (about 6.2%).
+Permuting residuals of the price-only model keeps each event's own price move and
+direction, which the relabelling null does not.
+
+**D15 Personal paths removed from the pilot's saved test output (history rewritten).** The
+pilot's `responsiveness/results/phase1_tests.txt` held two lines of pytest's header containing
+local paths under `/Users/…`. They were replaced with the placeholders `<venv>` and `<repo>`, in
+every commit of this branch, before the branch was first pushed.
+- **This was the only change.** No other file in the pilot, and no other line of that file,
+  changed.
+- **Verification.** Each rewritten commit differs from its original only in those two lines,
+  with the same message and dates.
+- **Search beforehand.** Every commit on the branch was searched first. No other `/Users/` path,
+  username or email address appeared in any file or commit message, and the API key appeared
+  nowhere. Commit metadata carries the author's configured git identity, which was left
+  unchanged.
+- **Hashes.** The rewrite changed the hash of every commit from the one that added the file
+  onward. The pilot's ledger rows and `RESULTS.md` cite the original hashes, and they are
+  append-only, so they were not edited. Commits before 5a9097a kept their hashes (f3b32c9,
+  9c66711, 095f4c9). The rewritten commits map as follows; code and results are identical
+  apart from the file above:
+
+| original hash | rewritten hash | commit |
+|---|---|---|
+| 5a9097a | 07930ec | Experiment 5A Phase 1: cell measurement, Phase 2 runner and synthetic checks |
+| bfb5d5d | 01acdfa | Experiment 5A Phase 2: pilot run results (42 cells) and rendered RESULTS.md |
+| 6e0382d | cb38c3f | Experiment 5A: unexplained-move sensitivity without E4, and added limitations |
+| b97523a | e8964e4 | Experiment 5A Phase 3: experiment and repository READMEs |
+| 9d13fa2 | 2d5bca3 | Experiment 5A definitive run: Phase 0 pre-registration (first version) |
+
+So a ledger row with `code_commit` 5a9097a refers to the code in 07930ec, and 6e0382d refers to
+cb38c3f. *Reason (researcher):* public-repository hygiene; approved on 9 October 2026.
+
+**D16 D13's figures.** The D13 calibration (6.3% with no echo, 6.1% with all three echoes; 1,000
+replications at K = 199, seed 99) is in `results/test_b_calibration.md` as committed in 2d5bca3.
+That file is now replaced by the D14 calibration, which covers both versions at K = 1,000.
+*Reason:* the D14 calibration supersedes it; the earlier figures stay in the history.
+
+**D17 Outcome of the D14 rule: Freedman-Lane is the primary Test B.** From
+`results/test_b_calibration.md` (1,000 replications per scenario, K = 1,000):
+
+| no-effect scenario | Freedman-Lane | relabelling |
+|---|---|---|
+| no echo | 5.7% | 6.5% |
+| linear echo | 5.6% | 6.3% |
+| saturating echo | 4.7% | 6.2% |
+| step echo | 6.0% | 6.8% |
+| date-wide shock | **6.4%** | 6.9% |
+
+Power at 1 point is 99.5% for both. Every Freedman-Lane rate is within 3.6% to 6.4%, so it
+becomes primary (`config.TEST_B_METHOD`), and the relabelling version is a secondary cell. One
+rate is exactly on the edge: the date-wide shock gives 64 of 1,000 = 6.4%. The calibration
+script was written and run before any result existed, and it treats the rule's bounds as
+inclusive (3.6% ≤ rate ≤ 6.4%). Read with exclusive bounds, the rule would keep the
+relabelling version primary. The script's reading is applied. *Reason:* the selection is
+mechanical, by the rule as coded before the run; the tie is stated so the reader can judge it.

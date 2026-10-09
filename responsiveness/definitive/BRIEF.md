@@ -49,9 +49,11 @@ Here Δₑ is the change in score (pilot definition, in points), dₑ is the eve
 
 - **Knots:** ±0.0091, ±0.0289 and ±0.0737, the 50th, 90th and 99th percentiles of the absolute market-adjusted daily return over the pilot's universe and price history (2 January 2025 to 22 June 2026). They were fixed by that rule before any data from the period was pulled, and frozen in config.py.
 - **Cell:** score_exo, E3 alone. Analyst actions carry a direction that does not come from the price move.
-- **Test:** the pilot's relabelling procedure. Within each stock, draw the same number of random eligible sessions as it has events and give them that stock's event directions. Compute r for those sessions from actual prices, refit, and record b⁽ᵏ⁾. Use K = 1,000 and a fixed seed. p = (1 + number of k with b⁽ᵏ⁾ ≥ b) / 1,001.
+- **Test (primary, from 9 October 2026):** a Freedman-Lane permutation test. Fit the reduced model (Δ on the intercept, r, sign(r) and the spline terms, without d), permute its residuals across the E3 events, add them back to its fitted values, refit the full model and record b⁽ᵏ⁾. Use K = 1,000 and a fixed seed. p = (1 + number of k with b⁽ᵏ⁾ ≥ b) / 1,001. It was chosen by a rule pre-registered on 9 October 2026 (DECISIONS.md D14), before any data from the period was pulled. On synthetic data its false-positive rate was 4.7% to 6.4% across five no-effect scenarios, and its power at 1 point was 99.5% (results/test_b_calibration.md; D17).
+- **Test (secondary):** the pilot's relabelling procedure. Within each stock, draw the same number of random eligible sessions as it has events and give them that stock's event directions. Compute r for those sessions from actual prices, refit, and record b⁽ᵏ⁾. Use K = 1,000 and a fixed seed. p = (1 + number of k with b⁽ᵏ⁾ ≥ b) / 1,001. This was the primary test of the 8 October amendment; on synthetic data it ran at 6.2% to 6.9% false positives.
 - **Interval:** the pilot's date bootstrap (B = 2,000) for b and c.
 - **Secondary**, in the secondary family with Benjamini-Hochberg adjustment:
+  - the E3 test with the relabelling null (above);
   - the regression as first specified (linear control only), pooled over E1, E2 and E3, reported next to its synthetic result (10.5% false positives with no effect, 67% with a saturating echo);
   - the E3 test on the narrative, influencer and macro channels separately;
   - the E3 test with Δₑ in noise units.

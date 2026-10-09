@@ -1,0 +1,13 @@
+method,scenario,kind,reject_rate,se,n_nan
+relabel,"no effect, no echo",false positive,0.065,0.007795832219846705,0
+relabel,"no effect, linear echo",false positive,0.063,0.007683163410991596,0
+relabel,"no effect, saturating echo",false positive,0.062,0.007626008130076967,0
+relabel,"no effect, step echo",false positive,0.068,0.007960904471226871,0
+relabel,"no effect, date-wide shock (SD 3 points, common to every event on a date)",false positive,0.069,0.008014923580421713,0
+relabel,"planted effect of 1 point, no echo",power,0.995,0.002230470802319547,0
+freedman_lane,"no effect, no echo",false positive,0.057,0.007331507348424334,0
+freedman_lane,"no effect, linear echo",false positive,0.056,0.007270763371201128,0
+freedman_lane,"no effect, saturating echo",false positive,0.047,0.006692607862410586,0
+freedman_lane,"no effect, step echo",false positive,0.06,0.007509993342207435,0
+freedman_lane,"no effect, date-wide shock (SD 3 points, common to every event on a date)",false positive,0.064,0.007739767438366608,0
+freedman_lane,"planted effect of 1 point, no echo",power,0.995,0.002230470802319547,0

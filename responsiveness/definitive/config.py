@@ -61,12 +61,15 @@ INTEGRITY_STOP_SHARE = 0.20                         # more flagged sessions than
 TEST_B_INDEX = "score_exo"
 TEST_B_TYPES = ("E3",)                      # primary cell: E3 alone
 TEST_B_CONTROLS = "flexible"                # r, sign(r) and a linear spline in r
+# Null for the primary Test B, chosen by the pre-registered rule of DECISIONS.md D14 (outcome: D17).
+TEST_B_METHOD = "freedman_lane"             # permutation of the price-only model's residuals
 # Knot rule (no outcome data): symmetric knots at the 50th, 90th and 99th percentiles of the
 # absolute market-adjusted daily return, pooled over the pilot's 473 names and its price history
 # (2 January 2025 to 22 June 2026; 173,116 returns). Computed 8 October 2026, rounded to 4 dp.
 SPLINE_KNOTS = (-0.0737, -0.0289, -0.0091, 0.0091, 0.0289, 0.0737)
 TEST_B_SECONDARY = (
     # (cell id, event types, index, controls, units)
+    ("E3, random-session relabelling null (P2)", ("E3",), "score_exo", "flexible", "points"),
     ("pooled E1-E3, as first specified", ("E1", "E2", "E3"), "score_exo", "linear", "points"),
     ("E3, narrative", ("E3",), "narrative", "flexible", "points"),
     ("E3, influencer", ("E3",), "influencer", "flexible", "points"),

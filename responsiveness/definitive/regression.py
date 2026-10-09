@@ -83,6 +83,24 @@ def relabel_b(stock: np.ndarray, direction: np.ndarray, b_obs: float, D: np.ndar
     return {"p": p, "null_b": null_b}
 
 
+def freedman_lane_b(y, d, r, b_obs: float, K: int, rng: np.random.Generator,
+                    controls: str = "flexible") -> dict:
+    """Freedman-Lane permutation test for b (DECISIONS.md D14). Fit the reduced model (y on
+    the price terms only, without d), permute its residuals across events, add them back to
+    its fitted values, refit the full model and record b. p = (1 + #{b_k >= b}) / (K + 1)."""
+    y, d, r = (np.asarray(v, float) for v in (y, d, r))
+    X0 = np.delete(design(d, r, controls), 1, axis=-1)            # the full design without d
+    beta0 = np.linalg.pinv(X0.T @ X0, hermitian=True) @ (X0.T @ y)
+    fitted, resid = X0 @ beta0, y - X0 @ beta0
+    perm = np.argsort(rng.random((K, len(y))), axis=1)
+    null_b = fit_batch(fitted[None, :] + resid[perm], np.tile(d, (K, 1)), np.tile(r, (K, 1)),
+                       controls=controls)[:, 1]
+    null_b = null_b[~np.isnan(null_b)]
+    if np.isnan(b_obs) or not len(null_b):
+        return {"p": np.nan, "null_b": null_b}
+    return {"p": float((1 + np.sum(null_b >= b_obs - 1e-12)) / (len(null_b) + 1)), "null_b": null_b}
+
+
 def date_bootstrap_bc(y, d, r, dates, B: int, rng: np.random.Generator, controls: str = "linear") -> dict:
     """Resample distinct event dates with replacement (pilot M4); refit with the draw
     counts as weights. Returns 95% percentile intervals for b and c, and the draws."""

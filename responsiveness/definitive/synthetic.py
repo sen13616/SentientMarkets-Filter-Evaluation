@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .regression import fit, relabel_b
+from .regression import fit, freedman_lane_b, relabel_b
 
 N_STOCKS, N_SESS = 60, 35
 SIGMA_R, JUMP_P, JUMP_MU, JUMP_SD = 0.015, 0.04, 0.06, 0.02
@@ -46,12 +46,16 @@ ECHOES = {"none": echo_none, "linear": echo_linear, "saturating": echo_saturatin
 
 
 def world(rng, design: str = "independent", echo: str = "none", delta: float = 0.0,
-          n_price: int = 2, n_indep: int = 2):
-    """Returns (stock, direction, y, r, dates) for the events, and D, R, eligible matrices."""
+          n_price: int = 2, n_indep: int = 2, date_shock: float = 0.0):
+    """Returns (stock, direction, y, r, dates) for the events, and D, R, eligible matrices.
+    `date_shock` > 0 adds a shock with that SD, common to every stock on a session, so all
+    events on a date share it."""
     R = rng.normal(0, SIGMA_R, (N_STOCKS, N_SESS))
     jump = rng.random((N_STOCKS, N_SESS)) < JUMP_P
     R[jump] += rng.choice([-1, 1], jump.sum()) * rng.normal(JUMP_MU, JUMP_SD, jump.sum())
     D = rng.normal(0, SCORE_NOISE, R.shape) + ECHOES[echo](R)
+    if date_shock:
+        D += rng.normal(0, date_shock, N_SESS)[None, :]
     st, ss, dd = [], [], []
     for i in range(N_STOCKS):
         taken = set()
@@ -76,7 +80,11 @@ def world(rng, design: str = "independent", echo: str = "none", delta: float = 0
     return st, dd, D[st, ss], R[st, ss], ss, D, R, eligible
 
 
-def one_test(rng, K: int = 199, controls: str = "linear", **kw) -> tuple[float, float]:
+def one_test(rng, K: int = 199, controls: str = "linear", method: str = "relabel", **kw) -> tuple[float, float]:
+    """One synthetic Test B: method "relabel" (random-session relabelling, P2) or
+    "freedman_lane" (residual permutation, D14)."""
     st, dd, y, r, dates, D, R, elig = world(rng, **kw)
     b = fit(y, dd, r, controls)[1]
+    if method == "freedman_lane":
+        return b, freedman_lane_b(y, dd, r, b, K, rng, controls)["p"]
     return b, relabel_b(st, dd, b, D, R, elig, K, rng, controls)["p"]

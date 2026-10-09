@@ -201,3 +201,28 @@ def test_empty_spline_term_drops_out_of_the_fit():
     assert len(keep) == X.shape[1] - 1 and SPLINE_KNOTS[-1] > 0.05
     b_ref = np.linalg.lstsq(X[:, keep], y, rcond=None)[0][1]
     assert b_full == pytest.approx(b_ref)
+
+
+# --------------------------------------------------------------------------- Freedman-Lane (D14)
+
+def test_freedman_lane_null_centres_on_zero_and_detects_effect():
+    from responsiveness.definitive.regression import freedman_lane_b
+    rng = np.random.default_rng(4)
+    n = 180
+    d, r = rng.choice([-1.0, 1.0], n), rng.normal(0, 0.02, n)
+    noise = rng.normal(0, 3, n)
+    y0 = 4 * np.tanh(r / 0.02) + noise                        # price echo only
+    res0 = freedman_lane_b(y0, d, r, fit(y0, d, r, "flexible")[1], 1000, rng)
+    assert abs(np.mean(res0["null_b"])) < 0.05 and len(res0["null_b"]) == 1000
+    y1 = y0 + 1.5 * d                                         # plus an effect beyond price
+    res1 = freedman_lane_b(y1, d, r, fit(y1, d, r, "flexible")[1], 1000, rng)
+    assert res1["p"] < 0.01
+
+
+def test_freedman_lane_valid_and_powerful_on_rating_like_events():
+    rng = np.random.default_rng(8)
+    p0 = np.array([one_test(rng, K=199, controls="flexible", method="freedman_lane", design="rating_like",
+                            n_indep=3, echo="all three")[1] for _ in range(200)])
+    p1 = np.array([one_test(rng, K=199, controls="flexible", method="freedman_lane", design="rating_like",
+                            n_indep=3, delta=1.0)[1] for _ in range(40)])
+    assert 0.01 <= (p0 < 0.05).mean() <= 0.09 and (p1 < 0.05).mean() >= 0.9
