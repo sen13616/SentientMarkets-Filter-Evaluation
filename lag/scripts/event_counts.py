@@ -71,6 +71,14 @@ def describe_set(name: str, ev: pd.DataFrame, counts: dict, threshold: float) ->
           f"- Kept, in period: {len(kept)} ({len(e1)} L-E1, {len(e2)} L-E2; "
           f"{int(kept['in_session'].sum())} inside the session, {int((~kept['in_session']).sum())} outside)",
           f"- Stocks with a kept event: {kept['ticker'].nunique()}", ""]
+    if len(e2):
+        per = e2["ticker"].value_counts()
+        top10 = int(per.head(10).sum())
+        L += ["### Concentration of L-E2 events across stocks", "",
+              f"- Stocks with an L-E2 event: {len(per)}; mean per stock {per.mean():.2f}, median {per.median():.0f}",
+              f"- Largest number for one stock: {int(per.iloc[0])} ({per.index[0]})",
+              f"- Share held by the 10 stocks with most events: {top10 / len(e2):.1%} ({top10} of {len(e2)})",
+              f"- Stocks with 1 event: {int((per == 1).sum())}; with 2: {int((per == 2).sum())}; with 3 or more: {int((per >= 3).sum())}", ""]
     return L
 
 

@@ -11,7 +11,8 @@ experiment measures; it has no pass or fail, and it says nothing about whether t
 The full specification is [BRIEF.md](BRIEF.md); every interpretive choice, dated, is in
 [DECISIONS.md](DECISIONS.md).
 
-**Status: Phase 0 (setup, price collection and event counts).** No response has been computed.
+**Status: Phase 1 done (measurement, inference and synthetic tests).** No response has been
+computed on real data. The pilot run is Phase 2.
 
 ## What is measured
 
@@ -58,6 +59,7 @@ python -m lag.scripts.pull_hourly             # hourly bars for the pilot -> $SM
 python -m lag.scripts.collect_15m             # 15-minute bars for 2 Oct to 23 Nov 2026 -> bars_15m.parquet (rerun weekly)
 python -m lag.scripts.collect_15m --report-only   # rewrite results/coverage_15m.md without downloading
 python -m lag.scripts.event_counts            # results/event_counts.md (no response computed)
+python -m lag.scripts.synthetic_summary       # results/phase1_synthetic.md: the seven synthetic checks with numbers
 ```
 
 **The 15-minute collector must be run at least every 8 weeks while the period is live** (weekly is
@@ -74,9 +76,13 @@ lost. Each run adds only bars not yet stored and never changes a stored bar.
 | `data.py` | loaders for ticks, bars, daily prices, earnings tables, universe and calendar |
 | `bars.py` | yfinance intraday download, in-memory lock filter, store merge, coverage report |
 | `events.py` | L-E1 and L-E2 construction, clustering, period filter |
+| `measure.py` | readings, response and price curves, T½ and T₉₀, alignment |
+| `inference.py` | relabelling null, first response (Holm), placebo curves, bootstraps, BH |
+| `pipeline.py` | from events and ticks to the measures of a cell; alignment per index |
+| `synthetic.py` | synthetic ticks, bars and events for the tests |
 | `scripts/` | the commands above |
 | `tests/` | synthetic-data tests |
 | `results/` | committed aggregate outputs (counts, coverage, checks); never raw data |
 | `ledger.csv` | append-only log of every run (from Phase 2) |
 
-Measurement, inference and the rendered results arrive in Phases 1 and 2.
+The pilot run, the rendered results and the charts arrive in Phase 2.

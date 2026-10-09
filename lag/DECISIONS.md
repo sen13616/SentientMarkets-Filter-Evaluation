@@ -118,6 +118,24 @@ on reviewing the Phase 0 event counts, with no response computed.
 
 BRIEF.md sections 3 and 5 carry dated amendment notes with the original text kept below them.
 
+## Phase 1 (9 October 2026, while building the measurement on synthetic data; no real response computed)
+
+**L15 Bootstrap handling of "not reached".** In the date bootstrap, a draw whose R(h) does not
+reach 0.5 (or 0.9) within 48 hours enters the percentile interval at the 48-hour cap, and the share
+of such draws is reported next to the interval. Relabelled times are drawn per event from the
+event's own pool (so two events of one stock may land on the same session), while 5A drew within a
+stock without replacement; the pools are per event here because each event has its own time of
+day. *Reason:* the brief caps T½ and T₉₀ at 48 hours; an interval needs a number for every draw.
+Per-event pools follow from the time-of-day rule in BRIEF.md section 5.
+
+**L16 Rₚ(T½) is read at the first grid point where R has reached 0.5.** T½ itself is still the
+linearly interpolated crossing. If R never reaches 0.5 within 48 hours, Rₚ(T½) is Rₚ(48 h), which is
+1 by construction. *Reason:* the score is a step function of its ticks, so "when the score is half
+done" is a grid point, not an interpolated instant. Interpolating both curves between two grid
+points would report Rₚ(T½) = 0.5 for an index that copies price in the same bar, where the right
+answer is 1 (the price move is complete at the moment the score reaches half). The synthetic test
+of the brief ("an index that only copies price ... has Rₚ(T½) near 1") fixes this reading.
+
 ## Observations at the Phase 0 checkpoint (not decisions)
 
 - The in-session tick spacing changed on 18 May 2026, from 30 minutes to 15 (results/tick_check.md).

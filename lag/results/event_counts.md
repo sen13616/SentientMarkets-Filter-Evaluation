@@ -91,6 +91,13 @@ L-E2 threshold: |z| > 5.1503, where z is the bar's market-adjusted move over the
 - Kept, in period: 182 (52 L-E1, 130 L-E2; 130 inside the session, 52 outside)
 - Stocks with a kept event: 154
 
+### Concentration of L-E2 events across stocks
+
+- Stocks with an L-E2 event: 111; mean per stock 1.17, median 1
+- Largest number for one stock: 3 (IBM)
+- Share held by the 10 stocks with most events: 16.2% (21 of 130)
+- Stocks with 1 event: 93; with 2: 17; with 3 or more: 1
+
 ## Sensitivity event set (L-E1; L-E2 with |z| > 3, the original rule)
 
 L-E2 threshold: |z| > 3.0000, where z is the bar's market-adjusted move over the stock's normal move for that time of day.
@@ -163,6 +170,13 @@ L-E2 threshold: |z| > 3.0000, where z is the bar's market-adjusted move over the
 - Kept but outside the event period: 101
 - Kept, in period: 1313 (52 L-E1, 1261 L-E2; 1261 inside the session, 52 outside)
 - Stocks with a kept event: 448
+
+### Concentration of L-E2 events across stocks
+
+- Stocks with an L-E2 event: 445; mean per stock 2.83, median 3
+- Largest number for one stock: 7 (AAL)
+- Share held by the 10 stocks with most events: 5.0% (63 of 1261)
+- Stocks with 1 event: 81; with 2: 120; with 3 or more: 244
 
 ## Normal moves
 
