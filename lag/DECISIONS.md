@@ -155,6 +155,16 @@ event's weekday made it worse (8.3%), so the cause is not the weekend tick count
 investigated on synthetic data, with a fix proposed if one is needed, before the definitive config
 is frozen.
 
+## Phase 2 record (9 October 2026)
+
+**Rerun after a bug fix.** The first pilot run, at commit 618d673, produced price curves that were
+exactly zero in every cell: the hourly bar store read from parquet carries microsecond stamps, and
+the price series compared them with nanosecond grid instants, so every bar end sorted after every
+instant. Score curves, relabelling tests, bootstraps and alignment were unaffected. The fix (stamps
+forced to nanoseconds, with a regression test on microsecond stamps) is commit 13052e5, and the
+pilot was rerun once at that commit. The ledger keeps the first run's rows (`code_commit` 618d673)
+above the rerun's; RESULTS.md is rendered from the rerun only. No threshold or definition changed.
+
 ## Observations at the Phase 0 checkpoint (not decisions)
 
 - The in-session tick spacing changed on 18 May 2026, from 30 minutes to 15 (results/tick_check.md).

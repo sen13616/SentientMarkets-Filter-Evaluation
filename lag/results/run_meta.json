@@ -1,0 +1,56 @@
+{
+ "run": "pilot",
+ "started_utc": "2026-10-09T08:04:48+00:00",
+ "config_hash": "170ea81f068c",
+ "code_commit": "13052e5",
+ "data_hash": "83b94ae480a8",
+ "seed": 20260513,
+ "universe": 473,
+ "sessions": [
+  "2026-05-12",
+  "2026-06-22",
+  28
+ ],
+ "bar": "1h",
+ "last_tick_utc": "2026-06-22T23:30:09.522961+00:00",
+ "event_start": "2026-05-13",
+ "e2_threshold": 5.1503,
+ "e2_threshold_computed": 5.150304385960143,
+ "e2_sensitivity_threshold": 3.0,
+ "events": {
+  "L-E1": 52,
+  "L-E2": 130,
+  "L-E2 (3x)": 1261,
+  "inside": 130,
+  "outside": 52
+ },
+ "prepared_primary": {
+  "n_events": 182,
+  "n_valid_before": 182,
+  "n_stale_before": 0,
+  "n_without_pool": 0,
+  "pool_size_median": 20.0,
+  "price_bars_missing": 473
+ },
+ "prepared_sensitivity": {
+  "n_events": 1261,
+  "n_valid_before": 1261,
+  "n_stale_before": 0,
+  "n_without_pool": 0,
+  "pool_size_median": 25.0,
+  "price_bars_missing": 473
+ },
+ "score_raw_rebuilt_ticks": 0,
+ "ticks": 1569507,
+ "smoothing_half_life_h": 4.0,
+ "k_perm": 1000,
+ "b_boot": 2000,
+ "n_placebo": 20,
+ "python": "3.14.6",
+ "numpy": "2.5.3",
+ "pandas": "3.0.6",
+ "finished_utc": "2026-10-09T08:05:19+00:00",
+ "run_seconds": 40,
+ "cells": 12,
+ "secondary_cells_examined": 59
+}

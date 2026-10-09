@@ -57,6 +57,16 @@ def row_for(cells: pd.DataFrame, group: str, where: str, index: str) -> pd.Serie
 
 
 NULL = {}   # filled in main() from results/null_check.json
+BAR_MIN = {"value": 60}   # bar length in minutes, set in main() from run_meta.json
+
+
+def rp_text(r: pd.Series, group: str) -> str:
+    """Rₚ(T½) with its interval; for in-session bar events with T½ shorter than one bar, the price
+    curve cannot have moved yet (it changes only at bar ends), so the zero is by construction."""
+    s = f"{r['rp_half']:.2f} ({r['rp_half_lo']:.2f} to {r['rp_half_hi']:.2f})"
+    if group.startswith("L-E2") and np.isfinite(r["t_half_h"]) and r["t_half_h"] * 60 < BAR_MIN["value"]:
+        s += f" (T½ is shorter than one {BAR_MIN['value']}-minute bar: zero by construction)"
+    return s
 
 
 def null_note() -> str:
@@ -85,8 +95,7 @@ def primary_sentence(r: pd.Series, index: str, group: str) -> str:
         return head + " Its timings are reported in section 5 but not interpreted."
     return (head + f" Half response T½ = {hours(r['t_half_h'], r['t_half_lo'], r['t_half_hi'])}; "
             f"full response T₉₀ = {hours(r['t_full_h'], r['t_full_lo'], r['t_full_hi'])}; first response at "
-            f"{minutes(r['first_response_min'])}; share of the price move already done at T½: "
-            f"{r['rp_half']:.2f} ({r['rp_half_lo']:.2f} to {r['rp_half_hi']:.2f}).")
+            f"{minutes(r['first_response_min'])}; share of the price move already done at T½: {rp_text(r, group)}.")
 
 
 def cell_table(cells: pd.DataFrame, groups: list[str], wheres: list[str], indices: tuple[str, ...], with_bh: bool) -> str:
@@ -109,7 +118,7 @@ def cell_table(cells: pd.DataFrame, groups: list[str], wheres: list[str], indice
                 t_half = hours(r["t_half_h"], r["t_half_lo"], r["t_half_hi"]) if ok else "(not interpreted)"
                 t_full = hours(r["t_full_h"], r["t_full_lo"], r["t_full_hi"]) if ok else ""
                 fr = minutes(r["first_response_min"]) if ok else ""
-                rp = f"{r['rp_half']:.2f} ({r['rp_half_lo']:.2f} to {r['rp_half_hi']:.2f})" if ok else ""
+                rp = rp_text(r, g) if ok else ""
                 bh = f"| {pval(r['p_M_bh'])} " if with_bh else ""
                 out.append(f"| {g}, {w} | {idx} | {int(r['n_index'])} | {r['M']:.2f} | {pval(r['p_M'])} | "
                            f"{r['M_lo']:.2f} to {r['M_hi']:.2f} {bh}| {gate_s} | {t_half} | {t_full} | {fr} | {rp} | {flag} |")
@@ -186,6 +195,7 @@ def main() -> None:
     ev = meta["events"]
     if (RESULTS / "null_check.json").exists():
         NULL.update(json.loads((RESULTS / "null_check.json").read_text()))
+    BAR_MIN["value"] = {"1h": 60, "15m": 15}[meta["bar"]]
 
     charts = []
     for g in PRIMARY_GROUPS:
@@ -228,6 +238,7 @@ def main() -> None:
           f"| events with a fresh before reading (L6) | {meta['prepared_primary']['n_valid_before']} of {meta['prepared_primary']['n_events']} "
           f"({meta['prepared_primary']['n_stale_before']} stale) |",
           f"| events without a placebo pool | {meta['prepared_primary']['n_without_pool']} (median pool {meta['prepared_primary']['pool_size_median']:.0f} sessions) |",
+          f"| bars without a close-to-close return | {meta['prepared_primary']['price_bars_missing']} (the first bar of each stock's store) |",
           f"| cells measured | {meta['cells']} ({meta['secondary_cells_examined']} secondary index-cells with a p-value) |", "",
           "Event construction, drops and clustering: [results/event_counts.md](results/event_counts.md). Tick spacing: "
           "[results/tick_check.md](results/tick_check.md). Bar coverage: [results/coverage_1h.md](results/coverage_1h.md).", "",
@@ -297,7 +308,9 @@ def main() -> None:
           "- **Pilot size.** 52 earnings releases between seasons and 130 large bars; intervals are wide, and the "
           "definitive run on the October to November 2026 season (15-minute bars, 2-hour smoothing) is the test that counts.",
           "- **Hourly bars for L-E2.** A move inside an hour is dated to the bar's start; the true time is unknown within the "
-          "hour. The definitive run's 15-minute bars tighten this to a quarter hour.",
+          "hour, and the price curve cannot register the event bar's own move until the bar closes, so Rₚ(T½) is zero by "
+          "construction for any index whose T½ is shorter than one bar (score_raw and the market channel here). The "
+          "definitive run's 15-minute bars tighten both to a quarter hour.",
           "- **The rarity threshold** was set after the Phase 0 counts (L14), on prices only, before any response was computed.", ""]
     (PKG / "RESULTS.md").write_text("\n".join(L))
     print(f"RESULTS.md rendered ({len(L)} lines), charts: {[c[1] for c in charts] + ['alignment.png']}")
