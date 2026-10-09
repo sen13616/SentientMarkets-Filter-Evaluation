@@ -77,14 +77,24 @@ BAR_MINUTES = {"1h": 60, "15m": 15}
 # ----------------------------------------------------------------------------- indices (section 3)
 INDICES = ("score", "score_raw", "score_exo", "narrative", "influencer", "macro", "market")
 PRIMARY_INDICES = ("score_exo", "score_raw")
+# Primary cells (L14): L-E1 and L-E2 separately, for each primary index. The pooled cell is secondary.
+PRIMARY_GROUPS = ("L-E1", "L-E2")
+SECONDARY_GROUPS = ("L-E1+L-E2", "L-E2 (3x sensitivity)")
 CONTAMINATED = ("market",)                        # computed from price; reported, flagged, given no weight
 COMPOSITE_WEIGHTS = {"market": 0.35, "narrative": 0.30, "influencer": 0.25, "macro": 0.10}
 EXO_WEIGHTS = r5a.EXO_WEIGHTS                     # 0.30 / 0.25 / 0.10, renormalised over those present
 
 # ----------------------------------------------------------------------------- events (section 3)
 EVENT_TYPES = ("L-E1", "L-E2")                    # also the clustering priority
-E2_MULT = 3.0                                     # bar move > 3 x normal move
 ROBUST_SD_FACTOR = 1.4826                         # robust SD = 1.4826 x median |return|
+# L-E2 threshold (L14, 9 October 2026, after the Phase 0 counts and before any response). A bar's
+# move is standardised by the stock's time-of-day robust scale (z). The threshold is the |z|
+# exceeded by E2_RARITY_SHARE of in-session bars, pooled across the universe over the run's period.
+# The pilot's value was computed from its bars on 9 October 2026 and is fixed here; the definitive
+# value is computed by the same rule from the definitive period's bars in Phase 4.
+E2_RARITY_SHARE = 0.002
+E2_Z_THRESHOLD = {"pilot": 5.1503, "definitive": None}
+E2_MULT_SENSITIVITY = 3.0                         # the original definition, kept as a secondary sensitivity cell
 MIN_NORMAL_OBS = 10                               # bars at that time of day needed for a normal move (L3)
 CLUSTER_WINDOW = pd.Timedelta(hours=48)
 NON_EVENT_RADIUS = 2                              # placebo and relabel sessions are > 2 sessions from any event (L8)

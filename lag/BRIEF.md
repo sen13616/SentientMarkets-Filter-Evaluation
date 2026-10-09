@@ -60,6 +60,8 @@ Enforce all three rules in the loaders and test them. History and price sources 
 
 The normal move for a bar is the robust standard deviation (1.4826 × the median absolute value) of the stock's market-adjusted returns for bars at the same time of day, over the period's sessions that are not earnings reaction sessions for that stock. The market return is the equal-weighted universe return for the same bar.
 
+> **Amended on 9 October 2026, after the Phase 0 event counts and before any response was computed (DECISIONS.md L14).** The L-E2 threshold "3 times that stock's normal move" is replaced by a rarity rule: standardise each bar's market-adjusted move by the stock's time-of-day normal move (z), and set the threshold at the |z| exceeded by 0.2% of in-session bars, pooled across the universe over the period. The pilot's value, 5.1503, is fixed from the pilot's bars; the definitive run applies the same rule to its own period's bars. The 3× definition is kept as a secondary sensitivity cell. The original text above is unchanged.
+
 Excluded, with the reason recorded: analyst rating changes and insider transactions (dated, not timed), and bursts of news (these need article publication times; in Phase 0, check from the API's documentation only whether they are exposed, and report).
 
 **Clustering.** At most one event per stock in any 48-hour window. Keep earnings over large moves, then the earlier event. Count what is dropped.
@@ -93,7 +95,11 @@ Excluded, with the reason recorded: analyst rating changes and insider transacti
 - **Is there a move to time at all?** For each index, test M with the relabelling test of 5A (same stock, random non-event times at the same time of day, same count per stock, K = 1,000, fixed seed, p = (1 + #{k : M⁽ᵏ⁾ ≥ M}) / (1 + K)). If an index's eventual move is not significant at 5%, its timings are reported as "no response to time" and not interpreted.
 - **Intervals.** 95% intervals for T½, T₉₀, Rₚ(T½) and the best-alignment k come from a bootstrap that resamples event dates (or session dates, for alignment), B = 2,000, fixed seed.
 - **Placebo curves.** The same curves at 20 placebo times per event (same stock, same time of day, non-event sessions), shown beside the event curves.
-- **Primary measures.** For `score_exo` and the unsmoothed composite, on L-E1 and L-E2 pooled: T½, T₉₀, the first response and Rₚ(T½), each with its interval. Everything else is secondary. Where a secondary measure has a p-value, report it with the number of cells examined and Benjamini-Hochberg adjusted values.
+- **Primary measures.**
+
+  > **Amended on 9 October 2026, after the Phase 0 event counts and before any response was computed (DECISIONS.md L14).** For `score_exo` and the unsmoothed composite, L-E1 and L-E2 are **two separate primary cells** (four primary cells in all): T½, T₉₀, the first response and Rₚ(T½), each with its interval. The pooled L-E1 + L-E2 cell is secondary. In the pilot the two types coincide with the outside- and inside-session split, so the pooled cell would mix two different mechanisms. The original text follows.
+
+  As first specified: For `score_exo` and the unsmoothed composite, on L-E1 and L-E2 pooled: T½, T₉₀, the first response and Rₚ(T½), each with its interval. Everything else is secondary. Where a secondary measure has a p-value, report it with the number of cells examined and Benjamini-Hochberg adjusted values.
 
 ## 6. Ground rules
 

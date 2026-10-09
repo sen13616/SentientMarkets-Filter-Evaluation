@@ -16,9 +16,12 @@ The full specification is [BRIEF.md](BRIEF.md); every interpretive choice, dated
 ## What is measured
 
 - **Events with a time.** L-E1: an earnings release with a time of day (time zero is the release
-  time). L-E2: the first regular-session bar in which a stock's market-adjusted move exceeds 3 times
-  its normal move for that time of day (time zero is the bar's start). At most one event per stock
-  in any 48 hours.
+  time). L-E2: the first regular-session bar in which a stock's market-adjusted move, standardised
+  by its normal move for that time of day, exceeds a rarity threshold set so that 0.2% of all
+  in-session bars pass it (time zero is the bar's start; DECISIONS.md L14). At most one event per
+  stock in any 48 hours. The original 3-times-normal rule is kept as a sensitivity cell.
+- **Primary cells.** L-E1 and L-E2 separately, for `score_exo` and the unsmoothed composite. The
+  pooled cell and everything else is secondary.
 - **Response curve.** For each index, the signed change in the score from the last tick before time
   zero to each later tick, averaged over events, divided by its value at 48 hours. T½ and T₉₀ are
   the first times the curve reaches 50% and 90%.

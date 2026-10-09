@@ -1,14 +1,16 @@
-"""Timed events for Experiment 5B (BRIEF.md section 3; DECISIONS.md L1 to L5).
+"""Timed events for Experiment 5B (BRIEF.md section 3; DECISIONS.md L1 to L5 and L14).
 
 Two event types, each with a time zero t0 fixed to within an hour:
 
 - L-E1, an earnings release with a time of day. t0 is the release time. The direction is the sign
   of the stock's market-adjusted return from the last close at or before the release to the first
   close after it (the reaction session R, as in Experiment 5A).
-- L-E2, a large move within the day: the first regular-session bar of a stock whose
-  market-adjusted move exceeds 3 times the stock's normal move for bars at that time of day.
-  t0 is the start of that bar; the direction is the sign of the bar's market-adjusted move. A
-  session that is (or may be) an earnings reaction session for the stock is excluded.
+- L-E2, a large move within the day: the first regular-session bar of a stock whose standardised
+  market-adjusted move (the move over the stock's normal move for that time of day, z) exceeds the
+  rarity threshold of L14: the |z| exceeded by 0.2% of in-session bars, pooled over the universe
+  and the period. The original rule, |z| > 3, is kept as a secondary sensitivity cell. t0 is the
+  start of that bar; the direction is the sign of the bar's market-adjusted move. A session that
+  is (or may be) an earnings reaction session for the stock is excluded.
 
 The bar move is the return from the bar's open to its close, so an overnight gap, whose time
 cannot be fixed, never creates an event (L1). The market return is the equal-weighted universe
@@ -32,7 +34,7 @@ import pandas as pd
 from responsiveness.events import Calendar, earnings_reaction_session, earnings_time_known
 from responsiveness.market import Prices
 
-from .config import CLUSTER_WINDOW, E2_MULT, EVENT_TYPES, MIN_NORMAL_OBS, NY, POST_WINDOW, ROBUST_SD_FACTOR
+from .config import CLUSTER_WINDOW, E2_RARITY_SHARE, EVENT_TYPES, MIN_NORMAL_OBS, NY, POST_WINDOW, ROBUST_SD_FACTOR
 from .data import session_bounds
 
 RANK = {t: i for i, t in enumerate(EVENT_TYPES)}
@@ -175,14 +177,30 @@ def normal_move(panel: BarPanel, excluded: dict[str, set[date]], min_obs: int = 
     return pd.DataFrame(out).reindex(index=tods, columns=panel.tickers)
 
 
-def build_le2(panel: BarPanel, normal: pd.DataFrame, excluded: dict[str, set[date]], cal: Calendar) -> pd.DataFrame:
-    """L-E2 candidates: the first bar per (ticker, session) with |adj move| > 3 x normal move. A
-    session excluded for the ticker (earnings reaction) is marked, not kept. Also returns, in
-    `attrs`, the number of bars that passed the threshold and the number with no normal move."""
+def z_scores(panel: BarPanel, normal: pd.DataFrame) -> pd.DataFrame:
+    """Each bar's market-adjusted move divided by the stock's normal move at that time of day."""
+    thr = pd.DataFrame({t: normal[t].reindex(panel.tod).to_numpy() for t in panel.tickers}, index=panel.ts)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return panel.adj / thr
+
+
+def rarity_threshold(z: pd.DataFrame, share: float = E2_RARITY_SHARE) -> float:
+    """The |z| exceeded by `share` of the bars that have a z, pooled over every stock and bar (L14)."""
+    a = np.abs(z.to_numpy(float))
+    a = a[np.isfinite(a)]
+    return float(np.quantile(a, 1.0 - share))
+
+
+def build_le2(panel: BarPanel, normal: pd.DataFrame, excluded: dict[str, set[date]], cal: Calendar,
+              threshold: float) -> pd.DataFrame:
+    """L-E2 candidates: the first bar per (ticker, session) with |z| > `threshold`, where z is the
+    market-adjusted move over the stock's normal move at that time of day. A session excluded for the
+    ticker (earnings reaction) is marked, not kept. Also returns, in `attrs`, the number of bars that
+    passed the threshold and the number with no normal move."""
     thr = pd.DataFrame({t: normal[t].reindex(panel.tod).to_numpy() for t in panel.tickers}, index=panel.ts)
     adj = panel.adj
     with np.errstate(invalid="ignore"):
-        hit = (adj.abs() > E2_MULT * thr) & thr.notna() & adj.notna()
+        hit = (adj.abs() > threshold * thr) & thr.notna() & adj.notna()
     no_normal = int((thr.isna() & adj.notna()).sum().sum())
     rows = []
     for t in panel.tickers:
@@ -252,13 +270,15 @@ def week_label(t0: pd.Timestamp) -> date:
 
 
 def build_events(earn: pd.DataFrame, prices: Prices, panel: BarPanel, cal: Calendar, event_start: date,
-                 last_tick: pd.Timestamp) -> tuple[pd.DataFrame, dict]:
-    """All candidates of both types with a status, and the counts behind results/event_counts.md."""
+                 last_tick: pd.Timestamp, z_threshold: float) -> tuple[pd.DataFrame, dict]:
+    """All candidates of both types with a status, and the counts behind results/event_counts.md.
+    `z_threshold` is the L-E2 threshold in units of the normal move: the rarity value of L14 for the
+    primary definition, 3.0 for the sensitivity cell."""
     excluded = earnings_sessions(earn, cal)
     window = (panel.ts.min() - CLUSTER_WINDOW, last_tick)
     e1 = build_le1(earn, prices, cal, window)
     normal = normal_move(panel, excluded)
-    e2 = build_le2(panel, normal, excluded, cal)
+    e2 = build_le2(panel, normal, excluded, cal, z_threshold)
     parts = [p for p in (e1, e2) if len(p)]
     ev = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=EVENT_COLS)
     ev["t0"] = pd.to_datetime(ev["t0"], utc=True)

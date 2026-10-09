@@ -57,7 +57,7 @@ def test_le2_detects_planted_bar_and_first_bar_only(world):
     panel = ev.build_panel(b, tickers, sess)
     normal = ev.normal_move(panel, {})
     assert normal.shape == (7, 40) and normal.notna().all().all()
-    e2 = ev.build_le2(panel, normal, {}, Calendar(sess))
+    e2 = ev.build_le2(panel, normal, {}, Calendar(sess), 3.0)
     aaa = e2[e2["ticker"] == "AAA"]
     assert len(aaa) == 1 and aaa.iloc[0]["t0"] == t_plant and aaa.iloc[0]["direction"] == 1
     assert bool(aaa.iloc[0]["in_session"])
@@ -69,7 +69,7 @@ def test_le2_excludes_earnings_sessions(world):
     plant(b, "BBB", sess[5], "10:30", -0.06)
     panel = ev.build_panel(b, tickers, sess)
     normal = ev.normal_move(panel, {"BBB": {sess[5]}})
-    e2 = ev.build_le2(panel, normal, {"BBB": {sess[5]}}, Calendar(sess))
+    e2 = ev.build_le2(panel, normal, {"BBB": {sess[5]}}, Calendar(sess), 3.0)
     bbb = e2[e2["ticker"] == "BBB"]
     assert len(bbb) == 1 and bbb.iloc[0]["status"] == "earnings_session" and bbb.iloc[0]["direction"] == -1
 
@@ -88,7 +88,7 @@ def test_overnight_gap_is_not_an_event(world):
     m = (b["ticker"] == "DDD") & (b["session"] >= sess[8])
     b.loc[m, ["open", "high", "low", "close"]] *= 1.10
     panel = ev.build_panel(b, tickers, sess)
-    e2 = ev.build_le2(panel, ev.normal_move(panel, {}), {}, Calendar(sess))
+    e2 = ev.build_le2(panel, ev.normal_move(panel, {}), {}, Calendar(sess), 3.0)
     assert not len(e2) or not (e2["ticker"] == "DDD").any()
     # but the close-to-close series does carry the gap (price curve input)
     first = panel.ts[np.flatnonzero(panel.session == sess[8])[0]]
@@ -170,3 +170,23 @@ def test_collection_window():
     assert (s, e) == (date(2026, 10, 2), date(2026, 10, 10))
     s, e = bars_mod.collection_window(date(2026, 10, 2), date(2026, 11, 23), today=date(2026, 12, 15))
     assert (s, e) == (date(2026, 10, 18), date(2026, 11, 24))
+
+
+def test_rarity_threshold_is_the_pooled_quantile(world):
+    sess, tickers, b = world
+    panel = ev.build_panel(b, tickers, sess)
+    normal = ev.normal_move(panel, {})
+    z = ev.z_scores(panel, normal)
+    thr = ev.rarity_threshold(z, share=0.002)
+    a = np.abs(z.to_numpy().ravel())
+    a = a[np.isfinite(a)]
+    assert (a > thr).mean() <= 0.002 + 1 / a.size and (a >= thr).mean() >= 0.002 - 1 / a.size   # within one bar
+    # A planted move far above the threshold is the only candidate at that level.
+    t_plant = plant(b, "AAA", sess[12], "12:30", 0.10)
+    panel = ev.build_panel(b, tickers, sess)
+    normal = ev.normal_move(panel, {})
+    thr = ev.rarity_threshold(ev.z_scores(panel, normal))
+    e2 = ev.build_le2(panel, normal, {}, Calendar(sess), thr)
+    aaa = e2[e2["ticker"] == "AAA"]
+    assert len(aaa) == 1 and aaa.iloc[0]["t0"] == t_plant
+    assert aaa.iloc[0]["z"] == e2["z"].abs().max()

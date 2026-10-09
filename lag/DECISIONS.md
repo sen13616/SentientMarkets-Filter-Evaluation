@@ -92,6 +92,32 @@ across stocks, so a common grid is needed to average; 5 minutes loses nothing.
 `5a-definitive-prereg` tag so that `lag/` can import `responsiveness/`, which is not on `main`.
 *Reason:* BRIEF.md section 2 allows importing 5A's code; the import needs it in the tree.
 
+## Amendment after the Phase 0 counts (9 October 2026, before any response was computed)
+
+**L14 L-E2 rarity threshold, and L-E1 and L-E2 as separate primary cells.** Made by the researcher
+on reviewing the Phase 0 event counts, with no response computed.
+
+1. *Threshold.* Each bar's market-adjusted move is standardised by the stock's time-of-day robust
+   scale, as before (z). The L-E2 threshold is no longer 3 but the value of |z| exceeded by 0.2% of
+   in-session bars, pooled across the universe over the run's period (every bar that has a z,
+   earnings sessions included; the earnings exclusion applies to events, not to the pooled
+   distribution). For the pilot this is **5.1503**, computed from the 92,708 hourly bars of 12 May to
+   22 June 2026 and fixed in `config.py`; the counts script recomputes it and stops if the bars give
+   a different value. The definitive run applies the same rule to its own 15-minute bars, so its
+   value is computed in Phase 4 from prices alone and frozen in `lag/definitive/`. The original
+   definition, |z| > 3, is kept as a secondary sensitivity cell with its own event set.
+   *Reason:* 3 times the robust scale flagged 2.1% of hourly bars (results/event_counts.md before
+   this amendment), mostly noise, because the robust scale sits well below the standard deviation
+   of fat-tailed intraday returns. A rarity rule fixes what "large" means as a share of bars rather
+   than as a multiple of a scale whose tail behaviour is unknown in advance.
+2. *Primary cells.* L-E1 and L-E2 are two separate primary cells for `score_exo` and the unsmoothed
+   composite (four primary cells in all). The pooled L-E1 + L-E2 cell becomes secondary.
+   *Reason:* in the pilot every L-E1 event is outside the session and every L-E2 event inside it,
+   so the pooled cell mixes two mechanisms (an overnight release read at the next ticks, and an
+   in-session move read within the hour) and the inside/outside split cannot separate them.
+
+BRIEF.md sections 3 and 5 carry dated amendment notes with the original text kept below them.
+
 ## Observations at the Phase 0 checkpoint (not decisions)
 
 - The in-session tick spacing changed on 18 May 2026, from 30 minutes to 15 (results/tick_check.md).
