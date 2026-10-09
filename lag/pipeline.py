@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from .config import ALIGN_K, B_BOOT, INDICES, K_PERM, MAIN_HORIZONS_MIN, N_PLACEBO, NY
-from .inference import (alignment_bootstrap, ci, date_bootstrap, first_response, non_event_sessions, placebo_curves,
+from .inference import (alignment_bootstrap, ci, date_bootstrap, first_response, gate, non_event_sessions, placebo_curves,
                         pools, relabel_test)
 from .measure import (M_IDX, MAIN_IDX, OFFSETS_H, HourlyBars, PriceSeries, Ticks, alignment_cells, alignment_corr, price_at_half,
                       best_k, event_curves, price_curves, price_response, response_curve, sign_curves, timings,
@@ -90,6 +90,8 @@ def measure_cell(prep: Prepared, mask: np.ndarray, seed: int, k_perm: int = K_PE
             "p_h_holm": rel["p_h_holm"], "first_response_min": fr, "null_h_mean": rel["null_h_mean"],
             "relabel_n_used": rel["n_used"], "relabel_no_pool": rel["n_no_pool"], "placebo_mean_m": pl["mean_m"],
             "placebo_n": pl["n"], "obs_main_mean": np.nanmean(obs_main, axis=0),
+            "ci_M": np.array([ci(bt["M"][:, i]) for i in range(I)]),
+            "gate": gate(rel["p_M"], np.array([ci(bt["M"][:, i])[0] for i in range(I)])),
             "ci_t_half": np.array([ci(bt["t_half"][:, i]) for i in range(I)]),
             "ci_t_full": np.array([ci(bt["t_full"][:, i]) for i in range(I)]),
             "ci_rp_half": np.array([ci(bt["rp_half"][:, i]) for i in range(I)]),
@@ -108,6 +110,7 @@ def cell_rows(res: dict, cell: dict) -> list[dict]:
             continue
         row.update({
             "n_index": int(res["n_per_index"][i]), "M": res["M"][i], "p_M": res["p_M"][i],
+            "M_lo": res["ci_M"][i][0], "M_hi": res["ci_M"][i][1], "gate": bool(res["gate"][i]),
             "null_M_mean": res["null_M_mean"][i], "t_half_h": res["t_half"][i],
             "t_half_lo": res["ci_t_half"][i][0], "t_half_hi": res["ci_t_half"][i][1],
             "t_full_h": res["t_full"][i], "t_full_lo": res["ci_t_full"][i][0], "t_full_hi": res["ci_t_full"][i][1],

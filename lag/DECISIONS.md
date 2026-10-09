@@ -136,6 +136,25 @@ points would report Rₚ(T½) = 0.5 for an index that copies price in the same b
 answer is 1 (the price move is complete at the moment the score reaches half). The synthetic test
 of the brief ("an index that only copies price ... has Rₚ(T½) near 1") fixes this reading.
 
+## Amendment before the pilot run (9 October 2026, after the null check, before any response on real data)
+
+**L17 Combined gate for interpreting timings.** An index's T½, T₉₀, first response and Rₚ(T½) are
+interpreted only if two conditions hold together: the relabelling p for M is below 0.05, AND the
+date-bootstrap 95% interval for M (B = 2,000) lies wholly above zero. Otherwise the index is reported
+as "no response to time". Both quantities were already computed; nothing else changes. The
+false-positive rate of each gate on the synthetic no-response worlds (results/null_check.md) is
+quoted in RESULTS.md next to every gate decision. *Reason:* on 1,000 synthetic worlds with no
+response, the relabelling test alone gave 6.8% of p-values below 0.05 (standard error 0.7%), outside
+the 3.6% to 6.4% band agreed before the check (results/null_check.md); the researcher chose to
+proceed with the pilot under a stricter gate rather than change the relabelling test itself.
+
+**Open item (to settle before Phase 3, the definitive pre-registration).** Why does the relabelling
+test run hot on synthetic ticks made of a random walk plus white noise (6.8%), when white noise
+alone (4.3%) and a random walk alone (4.7%) are both in band? Restricting placebo pools to the
+event's weekday made it worse (8.3%), so the cause is not the weekend tick count alone. To be
+investigated on synthetic data, with a fix proposed if one is needed, before the definitive config
+is frozen.
+
 ## Observations at the Phase 0 checkpoint (not decisions)
 
 - The in-session tick spacing changed on 18 May 2026, from 30 minutes to 15 (results/tick_check.md).

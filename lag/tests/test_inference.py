@@ -123,3 +123,20 @@ def test_date_bootstrap_caps_unreached_timings():
     m2[:, ms.M_IDX, :] = 1.0                          # only the 48-hour point moves: T½ is "over 48 h" -> cap
     bt2 = inf.date_bootstrap(m2, rp, np.array([date(2026, 5, d) for d in (12, 13, 14, 15, 18, 19)]), n_boot=20, rng=rng)
     assert np.all(bt2["t_half"] >= 47.9)
+
+
+def test_combined_gate_and_m_draws():
+    rng = np.random.default_rng(11)
+    m48 = np.array([[3.0, -1.0], [4.0, -2.0], [2.0, 0.5], [5.0, -0.5]])
+    dates = np.array([date(2026, 5, d) for d in (12, 13, 14, 15)])
+    draws = inf.m_bootstrap(m48, dates, n_boot=500, rng=rng)
+    assert draws.shape == (500, 2) and draws[:, 0].min() >= 2.0 and draws[:, 0].max() <= 5.0
+    lo = np.array([inf.ci(draws[:, i])[0] for i in range(2)])
+    assert lo[0] > 0 and lo[1] < 0
+    assert inf.gate(np.array([0.01, 0.01]), lo).tolist() == [True, False]
+    assert inf.gate(np.array([0.2, 0.01]), np.array([1.0, 1.0])).tolist() == [False, True]
+    G, I = len(ms.OFFSETS_H), len(INDICES)
+    m = np.zeros((4, G, I))
+    m[:, ms.M_IDX, :] = m48[:, [0]]
+    bt = inf.date_bootstrap(m, np.zeros((4, G)), dates, n_boot=50, rng=rng)
+    assert bt["M"].shape == (50, I) and bt["M"].min() >= 2.0

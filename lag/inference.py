@@ -179,17 +179,39 @@ def placebo_curves(ticks: Ticks, events: pd.DataFrame, event_pools: list[np.ndar
 
 # --------------------------------------------------------------------------- bootstraps
 
-def date_bootstrap(m: np.ndarray, rp: np.ndarray, dates: np.ndarray, n_boot: int = B_BOOT,
-                   rng: np.random.Generator | None = None) -> dict:
-    """Resample the distinct event dates; per draw and index recompute R, T½, T₉₀ and Rₚ(T½).
-    Timings not reached are capped at 48 h. Returns draws (B x I) for each quantity."""
-    rng = rng or np.random.default_rng(0)
-    E, G, I = m.shape
+def date_weights(dates: np.ndarray, n_boot: int, rng: np.random.Generator) -> tuple[np.ndarray, int]:
+    """Event weights (B x E) from resampling the distinct event dates with replacement."""
     uniq, inv = np.unique(np.asarray(dates), return_inverse=True)
     D = len(uniq)
     W = np.apply_along_axis(np.bincount, 1, rng.integers(0, D, size=(n_boot, D)), minlength=D)   # B x D
-    ew = W[:, inv].astype(float)                                                                  # B x E
-    t_half, t_full, rp_half = (np.full((n_boot, I), np.nan) for _ in range(3))
+    return W[:, inv].astype(float), D
+
+
+def m_bootstrap(m48: np.ndarray, dates: np.ndarray, n_boot: int = B_BOOT,
+                rng: np.random.Generator | None = None) -> np.ndarray:
+    """Date-bootstrap draws of M, the mean signed change at 48 h (B x I), from per-event values m48 (E x I)."""
+    rng = rng or np.random.default_rng(0)
+    ew, _ = date_weights(dates, n_boot, rng)
+    ok = ~np.isnan(m48)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return (ew @ np.where(ok, m48, 0.0)) / (ew @ ok.astype(float))
+
+
+def gate(p_M: np.ndarray, m_lo: np.ndarray, alpha: float = ALPHA) -> np.ndarray:
+    """L17: an index's timings are interpreted only if the relabelling p for M is below alpha AND the
+    date-bootstrap 95% interval for M lies wholly above zero."""
+    p_M, m_lo = np.asarray(p_M, float), np.asarray(m_lo, float)
+    return (p_M < alpha) & (m_lo > 0)
+
+
+def date_bootstrap(m: np.ndarray, rp: np.ndarray, dates: np.ndarray, n_boot: int = B_BOOT,
+                   rng: np.random.Generator | None = None) -> dict:
+    """Resample the distinct event dates; per draw and index recompute M, R, T½, T₉₀ and Rₚ(T½).
+    Timings not reached are capped at 48 h. Returns draws (B x I) for each quantity."""
+    rng = rng or np.random.default_rng(0)
+    E, G, I = m.shape
+    ew, D = date_weights(dates, n_boot, rng)                                                      # B x E
+    t_half, t_full, rp_half, M = (np.full((n_boot, I), np.nan) for _ in range(4))
     ok_m = ~np.isnan(m)
     ok_r = ~np.isnan(rp)
     m0, r0 = np.where(ok_m, m, 0.0), np.where(ok_r, rp, 0.0)
@@ -199,6 +221,7 @@ def date_bootstrap(m: np.ndarray, rp: np.ndarray, dates: np.ndarray, n_boot: int
         with np.errstate(invalid="ignore", divide="ignore"):
             mean_m = num / den                                   # B x G
             R = mean_m / mean_m[:, [M_IDX]]
+        M[:, i] = mean_m[:, M_IDX]
         numr = ew @ r0
         denr = ew @ ok_r.astype(float)
         with np.errstate(invalid="ignore", divide="ignore"):
@@ -212,7 +235,7 @@ def date_bootstrap(m: np.ndarray, rp: np.ndarray, dates: np.ndarray, n_boot: int
             t_full[b, i] = CAP_H if np.isnan(tf) else tf
             j = crossing_index(R[b], 0.5)
             rp_half[b, i] = price_at_half(Rp[b], -1 if j is None else j)
-    return {"t_half": t_half, "t_full": t_full, "rp_half": rp_half, "n_dates": D}
+    return {"t_half": t_half, "t_full": t_full, "rp_half": rp_half, "M": M, "n_dates": D}
 
 
 def alignment_bootstrap(cells: dict, n_boot: int = B_BOOT, rng: np.random.Generator | None = None) -> dict:

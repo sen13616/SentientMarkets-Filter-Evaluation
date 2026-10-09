@@ -93,6 +93,8 @@ Excluded, with the reason recorded: analyst rating changes and insider transacti
 ## 5. Inference
 
 - **Is there a move to time at all?** For each index, test M with the relabelling test of 5A (same stock, random non-event times at the same time of day, same count per stock, K = 1,000, fixed seed, p = (1 + #{k : M⁽ᵏ⁾ ≥ M}) / (1 + K)). If an index's eventual move is not significant at 5%, its timings are reported as "no response to time" and not interpreted.
+
+  > **Amended on 9 October 2026, after the pre-pilot null check and before any response on real data (DECISIONS.md L17).** The gate for interpreting an index's timings is two conditions together: the relabelling p for M below 0.05, AND the date-bootstrap 95% interval for M wholly above zero. Both are already computed; nothing else changes. The false-positive rate of each gate on synthetic no-response worlds is reported next to every gate decision. The original text above is unchanged.
 - **Intervals.** 95% intervals for T½, T₉₀, Rₚ(T½) and the best-alignment k come from a bootstrap that resamples event dates (or session dates, for alignment), B = 2,000, fixed seed.
 - **Placebo curves.** The same curves at 20 placebo times per event (same stock, same time of day, non-event sessions), shown beside the event curves.
 - **Primary measures.**

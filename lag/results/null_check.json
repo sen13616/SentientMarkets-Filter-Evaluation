@@ -1,0 +1,57 @@
+{
+ "n_worlds": 1000,
+ "k_perm": 199,
+ "b_boot": 2000,
+ "relabel_rate": 0.068,
+ "combined_rate": 0.048,
+ "variants": {
+  "main: random walk + white noise, pool on any non-event session": {
+   "n": 1000,
+   "k": 199,
+   "share05": 0.068,
+   "share10": 0.124,
+   "share50": 0.521,
+   "ks": 0.05706939112023113,
+   "ci_above_zero": 0.086,
+   "combined": 0.048,
+   "se": 0.006892024376045111,
+   "seconds": 23
+  },
+  "white noise only": {
+   "n": 1000,
+   "k": 199,
+   "share05": 0.043,
+   "share10": 0.106,
+   "share50": 0.507,
+   "ks": 0.3226902143914646,
+   "ci_above_zero": 0.071,
+   "combined": 0.03,
+   "se": 0.006892024376045111,
+   "seconds": 23
+  },
+  "random walk only": {
+   "n": 1000,
+   "k": 199,
+   "share05": 0.047,
+   "share10": 0.09,
+   "share50": 0.486,
+   "ks": 0.7616082847491794,
+   "ci_above_zero": 0.055,
+   "combined": 0.027,
+   "se": 0.006892024376045111,
+   "seconds": 23
+  },
+  "random walk + white noise, pool restricted to the event's weekday": {
+   "n": 1000,
+   "k": 199,
+   "share05": 0.083,
+   "share10": 0.128,
+   "share50": 0.529,
+   "ks": 0.040396397741065626,
+   "ci_above_zero": 0.086,
+   "combined": 0.049,
+   "se": 0.006892024376045111,
+   "seconds": 19
+  }
+ }
+}
