@@ -212,7 +212,8 @@ class PriceSeries:
 
     @classmethod
     def from_panel(cls, panel, bar_minutes: int) -> "PriceSeries":
-        end = (panel.ts + pd.Timedelta(minutes=bar_minutes)).asi8
+        # Stamps are forced to nanoseconds: a store read from parquet carries microseconds.
+        end = (pd.DatetimeIndex(panel.ts) + pd.Timedelta(minutes=bar_minutes)).as_unit("ns").asi8.astype(np.int64)
         ends, cums, miss = {}, {}, {}
         for t in panel.tickers:
             a = panel.cc_adj[t].to_numpy(float)

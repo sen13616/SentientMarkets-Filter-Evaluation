@@ -202,3 +202,15 @@ def test_price_copy_is_aligned_at_zero_and_price_is_done_at_t_half():
     assert res["ci_rp_half"][i][0] > 0.9
     al = pl.alignment(prep.ticks, hb, "score", n_boot=50, seed=5)
     assert al["best_k"] == 0 and al["best_corr"] > 0.99
+
+
+def test_price_series_handles_microsecond_bar_stamps():
+    """A bar store read from parquet carries microsecond stamps; the price curve must still move."""
+    rng, sess, tickers, stamps, bars = world(n_tickers=3, n_sessions=6)
+    t0 = syn.bar_start(sess[2], "10:30")
+    bars = syn.plant_bar_move(bars, tickers[0], t0, 0.05)
+    bars["ts"] = bars["ts"].dt.as_unit("us")
+    panel = ev_mod.build_panel(bars, tickers, sess)
+    ps = ms.PriceSeries.from_panel(panel, 60)
+    rp = ms.price_curves(ps, np.array([tickers[0]]), np.array([t0.value]))[0]
+    assert rp[ms.ZERO_IDX] == 0.0 and rp[ms.M_IDX] > 0.03 and np.isfinite(rp).all()

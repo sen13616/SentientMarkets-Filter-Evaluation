@@ -71,7 +71,7 @@ def build_panel(bars: pd.DataFrame, tickers: list[str], sessions: list[date]) ->
     op = b.pivot(index="ts", columns="ticker", values="open").reindex(columns=tickers).sort_index()
     cl = b.pivot(index="ts", columns="ticker", values="close").reindex(columns=tickers).sort_index()
     ts = pd.DatetimeIndex(op.index)
-    ts = ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
+    ts = (ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")).as_unit("ns")
     op.index = cl.index = ts
     sess = b.drop_duplicates("ts").set_index("ts")["session"].reindex(ts).to_numpy()
     tod = ts.tz_convert(NY).strftime("%H:%M").to_numpy()
