@@ -27,7 +27,7 @@ import pandas as pd
 from .config import BAR_MINUTES, NY
 from .lock import assert_allowed, drop_outside
 
-COLS = ["ticker", "ts", "session", "open", "high", "low", "close", "volume"]
+COLS = ["ticker", "ts", "session", "open", "high", "low", "close", "volume", "regular"]
 PRICE_COLS = ["open", "high", "low", "close"]
 
 
@@ -35,11 +35,28 @@ def yf_symbol(ticker: str) -> str:
     return ticker.replace(".", "-")
 
 
+def regular_mask(ts: pd.Series, sessions: list[date]) -> np.ndarray:
+    """True where a bar starts inside a regular NYSE session [open, close)."""
+    from .data import session_bounds
+    if not len(ts):
+        return np.zeros(0, dtype=bool)
+    b = np.array([[o.value, c.value] for o, c in (session_bounds(d) for d in sessions)])
+    t = pd.to_datetime(ts, utc=True).to_numpy("datetime64[ns]").astype(np.int64)
+    i = np.searchsorted(b[:, 0], t, side="right") - 1
+    ok = i >= 0
+    out = np.zeros(len(t), dtype=bool)
+    out[ok] = t[ok] < b[i[ok], 1]
+    return out
+
+
 def download(tickers: list[str], interval: str, start: date, end: date, chunk: int = 50,
-             log=print) -> pd.DataFrame:
-    """Regular-session bars for [start, end) at `interval` ("1h" or "15m"). Returns the frame in
-    memory only; nothing is written here."""
+             prepost: bool = False, log=print) -> pd.DataFrame:
+    """Bars for [start, end) at `interval` ("1h" or "15m"); regular-session bars only, or with
+    pre- and post-market bars too when `prepost` is set (L18). Every bar carries `regular`, True
+    when it starts inside a NYSE session. Returns the frame in memory only; nothing is written here."""
     import yfinance as yf
+
+    from .data import calendar
 
     frames = []
     sym = {yf_symbol(t): t for t in tickers}
@@ -47,7 +64,7 @@ def download(tickers: list[str], interval: str, start: date, end: date, chunk: i
     for i in range(0, len(syms), chunk):
         part = syms[i:i + chunk]
         raw = yf.download(part, interval=interval, start=str(start), end=str(end), auto_adjust=True,
-                          prepost=False, actions=False, group_by="ticker", progress=False, threads=False)
+                          prepost=prepost, actions=False, group_by="ticker", progress=False, threads=False)
         for s in part:
             if isinstance(raw.columns, pd.MultiIndex):
                 if s not in raw.columns.get_level_values(0):
@@ -68,18 +85,27 @@ def download(tickers: list[str], interval: str, start: date, end: date, chunk: i
         log(f"  downloaded {min(i + chunk, len(syms))}/{len(syms)} tickers")
     if not frames:
         return pd.DataFrame(columns=COLS)
-    out = pd.concat(frames, ignore_index=True)[COLS]
+    out = pd.concat(frames, ignore_index=True)
     out["ts"] = pd.to_datetime(out["ts"], utc=True)
-    return out.sort_values(["ticker", "ts"]).reset_index(drop=True)
+    sess = [d.date() for d in calendar().sessions_in_range(pd.Timestamp(start) - pd.Timedelta(days=1),
+                                                            pd.Timestamp(end) + pd.Timedelta(days=1))]
+    out["regular"] = regular_mask(out["ts"], sess)
+    if not prepost:
+        out = out[out["regular"]]
+    return out[COLS].sort_values(["ticker", "ts"]).reset_index(drop=True)
 
 
 def load_store(path: Path) -> pd.DataFrame:
+    """The store; a store written before L18 has no `regular` column and held regular bars only."""
     if not path.exists():
         return pd.DataFrame(columns=COLS)
     df = pd.read_parquet(path)
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
     df["session"] = pd.to_datetime(df["session"]).dt.date
-    return assert_allowed(df, "ts", f"bar store {path.name}", "prices")
+    if "regular" not in df.columns:
+        df["regular"] = True
+    df["regular"] = df["regular"].astype(bool)
+    return assert_allowed(df[COLS], "ts", f"bar store {path.name}", "prices")
 
 
 def merge_store(new: pd.DataFrame, path: Path) -> dict:
@@ -87,6 +113,8 @@ def merge_store(new: pd.DataFrame, path: Path) -> dict:
     return counts: rows dropped by the lock, added, already present, and present with different values."""
     kept, dropped = drop_outside(new, "ts", "prices")
     assert_allowed(kept, "ts", "new bars", "prices")
+    if "regular" not in kept.columns:
+        kept = kept.assign(regular=True)
     old = load_store(path)
     key = ["ticker", "ts"]
     if len(old):
@@ -137,7 +165,11 @@ def coverage(bars: pd.DataFrame, sessions: list[date], bar: str, universe: list[
     else:
         done = [d for d in sessions if d <= through]
     exp = expected_bars(done, bar)
-    cnt = bars[bars["session"].isin(done) & bars["ticker"].isin(universe)].groupby(["ticker", "session"]).size()
+    reg = bars["regular"].astype(bool) if "regular" in bars.columns else pd.Series(True, index=bars.index)
+    in_scope = bars["session"].isin(done) & bars["ticker"].isin(universe)
+    n_extended = int((in_scope & ~reg).sum())
+    bars = bars[in_scope & reg]
+    cnt = bars.groupby(["ticker", "session"]).size()
     grid = cnt.unstack("session").reindex(index=universe, columns=done).fillna(0).astype(int)
     exp_row = pd.Series(exp)
     missing = (exp_row - grid).clip(lower=0)
@@ -159,6 +191,7 @@ def coverage(bars: pd.DataFrame, sessions: list[date], bar: str, universe: list[
     return {"through": through, "sessions_done": len(done), "sessions_total": len(sessions),
             "tickers": len(universe), "tickers_complete": int((per_ticker["bars_missing"] == 0).sum()),
             "bars": int(grid.to_numpy().sum()), "bars_expected": int(exp_row.sum() * len(universe)),
+            "bars_extended": n_extended,
             "per_ticker": per_ticker, "per_session": per_session, "gaps": gaps}
 
 
@@ -179,7 +212,8 @@ def coverage_markdown(cov: dict, title: str, store_name: str, manifest: dict | N
               f"| tickers with every expected bar | {cov['tickers_complete']} |",
               f"| bars stored (universe, sessions done) | {cov['bars']:,} |",
               f"| bars expected | {cov['bars_expected']:,} |",
-              f"| bars missing | {cov['bars_expected'] - cov['bars']:,} |", ""]
+              f"| bars missing | {cov['bars_expected'] - cov['bars']:,} |",
+              f"| extended-hours bars stored (pre- and post-market, L18; not counted above) | {cov.get('bars_extended', 0):,} |", ""]
     lines += ["## By session", "", "| session | bars per ticker expected | tickers with bars | tickers complete | bars missing |",
               "|---|---|---|---|---|"]
     for d, r in ps.iterrows():

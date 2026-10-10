@@ -28,7 +28,16 @@ M_COL = int(np.flatnonzero(ms.MAIN_IDX == ms.M_IDX)[0])
 BAND = (0.036, 0.064)
 
 
-def world(rng, n_events=8, n_sessions=28, walk=0.3, white=1.0, match_weekday=False):
+def spans_weekend(weekday: int) -> bool:
+    """Whether a 48-hour window starting on this weekday (0 = Monday) crosses a weekend."""
+    return weekday >= 3
+
+
+def world(rng, n_events=8, n_sessions=28, walk=0.3, white=1.0, match_weekday=False, radius=2, match_class=False,
+          seed_offset=0):
+    """One synthetic world: `n_events` stocks with one event each. `radius` is the non-event
+    radius in sessions; `match_class` keeps only pool sessions whose 48-hour window has the same
+    weekend-crossing class as the event's; `match_weekday` keeps only the event's weekday."""
     sess = syn.sessions(n_sessions)
     stamps = syn.tick_times(sess)
     values, rows = {}, []
@@ -42,13 +51,14 @@ def world(rng, n_events=8, n_sessions=28, walk=0.3, white=1.0, match_weekday=Fal
     ticks = ms.Ticks.from_frame(syn.ticks_frame(values, stamps))
     ev = syn.events_frame(rows)
     cand = {r.ticker: {pd.Timestamp(r.t0).tz_convert(NY).date()} for r in ev.itertuples()}
-    pools = inf.pools(ticks, ev, inf.non_event_sessions(cand, sess))
-    if match_weekday:
+    pools = inf.pools(ticks, ev, inf.non_event_sessions(cand, sess, radius=radius))
+    if match_weekday or match_class:
         new = []
         for e, r in enumerate(ev.itertuples()):
             wd = pd.Timestamp(r.t0).tz_convert(NY).weekday()
-            days = pd.to_datetime(pools[e], utc=True).tz_convert(NY).weekday
-            new.append(pools[e][np.asarray(days) == wd])
+            days = np.asarray(pd.to_datetime(pools[e], utc=True).tz_convert(NY).weekday)
+            keep = (days == wd) if match_weekday else (np.array([spans_weekend(d) for d in days]) == spans_weekend(wd))
+            new.append(pools[e][keep])
         pools = new
     t0_ns = ev["t0"].to_numpy("datetime64[ns]").astype(np.int64)
     cur = ms.event_curves(ticks, ev["ticker"].to_numpy(), t0_ns)

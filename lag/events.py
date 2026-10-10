@@ -64,8 +64,19 @@ class BarPanel:
     cc_adj: pd.DataFrame
 
 
-def build_panel(bars: pd.DataFrame, tickers: list[str], sessions: list[date]) -> BarPanel:
+LOO_MIN_OTHERS = 10   # extended-hours bars: market return needs at least this many other tickers (L18)
+
+
+def build_panel(bars: pd.DataFrame, tickers: list[str], sessions: list[date], regular_only: bool = True) -> BarPanel:
+    """Regular-session bars by default (the event definition and the pilot's price curve): the
+    market return is the equal-weighted mean over the universe. With `regular_only=False`, pre- and
+    post-market bars are included in time order (L18: the extended-hours price curve of the
+    definitive run); few tickers trade in an extended bar, so there the market return is the
+    leave-one-out equal-weighted mean over the other tickers that have the bar, and zero (the bar
+    is used unadjusted) when fewer than LOO_MIN_OTHERS others have it."""
     b = bars[bars["ticker"].isin(tickers) & bars["session"].isin(sessions)]
+    if regular_only and "regular" in b.columns:
+        b = b[b["regular"].astype(bool)]
     if b.duplicated(["ticker", "ts"]).any():
         raise ValueError("duplicate (ticker, ts) bars")
     op = b.pivot(index="ts", columns="ticker", values="open").reindex(columns=tickers).sort_index()
@@ -76,10 +87,20 @@ def build_panel(bars: pd.DataFrame, tickers: list[str], sessions: list[date]) ->
     sess = b.drop_duplicates("ts").set_index("ts")["session"].reindex(ts).to_numpy()
     tod = ts.tz_convert(NY).strftime("%H:%M").to_numpy()
     ret = cl / op - 1.0
-    mkt = ret.mean(axis=1, skipna=True)
-    adj = ret.sub(mkt, axis=0)
     cc = cl / cl.shift(1) - 1.0
-    cc_adj = cc.sub(cc.mean(axis=1, skipna=True), axis=0)
+    if regular_only:
+        mkt = ret.mean(axis=1, skipna=True)
+        adj = ret.sub(mkt, axis=0)
+        cc_adj = cc.sub(cc.mean(axis=1, skipna=True), axis=0)
+    else:
+        def loo(x: pd.DataFrame) -> pd.DataFrame:
+            n_other = x.notna().sum(axis=1).to_numpy()[:, None] - x.notna().astype(int)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                other_mean = (x.sum(axis=1, skipna=True).to_numpy()[:, None] - x.fillna(0.0)) / n_other
+            return x - other_mean.where(n_other >= LOO_MIN_OTHERS, 0.0)
+        adj = loo(ret)
+        cc_adj = loo(cc)
+        mkt = (ret - adj).mean(axis=1, skipna=True)
     return BarPanel(ts=ts, session=sess, tod=tod, tickers=list(tickers), open=op, close=cl, ret=ret,
                     mkt=mkt, adj=adj, cc=cc, cc_adj=cc_adj)
 

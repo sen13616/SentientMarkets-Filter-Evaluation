@@ -155,6 +155,49 @@ event's weekday made it worse (8.3%), so the cause is not the weekend tick count
 investigated on synthetic data, with a fix proposed if one is needed, before the definitive config
 is frozen.
 
+**Open item closed (10 October 2026; results/null_investigation.md).** On five independent seeds
+with 1,000 worlds each, the main scenario gives 4.4% of p-values below 0.05 (per seed 4.1% to 4.8%,
+pooled standard error 0.3%), white noise alone 4.2% and a random walk alone 4.5%; the share below
+0.10 is 9.6% to 9.8% in all three. The 6.8% of the pre-pilot null check was a fluctuation of its one
+seed (3.4 standard errors from the pooled rate, with the same world and relabelling stream), not a
+property of the test: the p-value is uncorrelated with the share of events whose 48-hour window
+crosses a weekend (Spearman −0.01), and the two candidate changes, pools matched on the
+weekend-crossing class (4.8%) and a non-event radius of 1 session (4.5%), move nothing. *Decision:*
+the relabelling test stays as specified (L9) and no fix is made. L17's combined gate stays as the
+researcher adopted it; its null rate on the pre-pilot seed was 4.8%. The pilot's RESULTS.md keeps
+quoting the pre-pilot seed's 6.8% and 4.8%, which were the rates known when its gates were decided;
+the definitive run quotes both the pre-pilot and the five-seed rates.
+
+## Amendments for the definitive run (9 October 2026, after the pilot, before any definitive sentiment is read)
+
+**L18 Extended-hours bars, and a second price curve for L-E1.** From 9 October 2026 the 15-minute
+collector downloads pre- and post-market bars as well (yfinance `prepost=True`); every stored bar
+carries a `regular` flag, regular-session bars are unchanged, and the store was rerun so that it
+covers 2 October onward with extended hours (prices only; the lock is unchanged). In the definitive
+run, Rₚ for L-E1 is reported twice: from regular-session bars only, as in the pilot, and from all
+bars including extended hours, counted from the release time. The event definition (L-E2), the
+normal moves and the alignment measure use regular-session bars only, as before. In the
+extended-hours curve the market return of a bar is the leave-one-out equal-weighted mean over the
+other tickers that have the bar, or zero when fewer than 10 others have it, because few names trade
+in a given pre- or post-market quarter hour and the event stock would otherwise be adjusted by its
+own move. *Reason (the researcher's):* the pilot shows `score_exo` half-responding to earnings
+releases about 3 hours after the release, before the next open, and that may be the news reporting
+after-hours price moves; a price curve that sees those moves tests it.
+
+**L19 Pre-event drift, a secondary measure for the definitive run.** For every cell and index, the
+signed change from 6 hours before t0 to the before reading, d·(S(t0⁻) − S(t0 − 6 h)), with its
+date-bootstrap 95% interval. It is not added to the pilot's results. *Reason (the researcher's):* the
+pilot's L-E2 chart shows `score_exo` about 0.8 points above its before reading six hours earlier,
+that is a drift against the event's direction before the bar; the definitive run measures it.
+
+**L20 Definitive universe from this experiment's bar store.** The definitive universe is the pilot's
+473 names less any without a regular 15-minute bar on every session of 2 October to 23 November
+2026, read from `bars_15m.parquet`. Experiment 5A's definitive universe applies the same rule to
+daily bars from its own cache, which exists only after 5A's Phase 1 (after 24 November); in Phase 4
+the two lists are compared and any difference reported. *Reason:* BRIEF.md names 5A definitive's
+universe, which is not available before the gate; the bar store gives the same rule from prices
+alone, so the universe can be fixed and tested before the pre-registration.
+
 ## Phase 2 record (9 October 2026)
 
 **Rerun after a bug fix.** The first pilot run, at commit 618d673, produced price curves that were

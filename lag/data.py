@@ -118,6 +118,9 @@ def load_bars(run: str) -> pd.DataFrame:
     df = pd.read_parquet(path)
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
     df["session"] = pd.to_datetime(df["session"]).dt.date
+    if "regular" not in df.columns:          # a store written before L18 held regular-session bars only
+        df["regular"] = True
+    df["regular"] = df["regular"].astype(bool)
     return assert_allowed(df, "ts", f"{run} intraday bars", "prices")
 
 

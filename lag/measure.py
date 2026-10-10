@@ -270,6 +270,8 @@ def hourly_bars(bars: pd.DataFrame, tickers: list[str], sessions: list[date], ba
     aggregated into the hours starting at the session open (open of the first bar, close of the
     last). The market return is the equal-weighted mean across tickers of the hourly return."""
     b = bars[bars["ticker"].isin(tickers) & bars["session"].isin(sessions)].copy()
+    if "regular" in b.columns:
+        b = b[b["regular"].astype(bool)]                 # alignment uses session hours only
     if bar_minutes == 60:
         b["hour_start"] = b["ts"]
     else:

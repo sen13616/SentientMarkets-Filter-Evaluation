@@ -11,8 +11,8 @@ experiment measures; it has no pass or fail, and it says nothing about whether t
 The full specification is [BRIEF.md](BRIEF.md); every interpretive choice, dated, is in
 [DECISIONS.md](DECISIONS.md).
 
-**Status: Phase 1 done (measurement, inference and synthetic tests).** No response has been
-computed on real data. The pilot run is Phase 2.
+**Status: pilot done (Phase 2, [RESULTS.md](RESULTS.md)); definitive run pre-registered in
+[definitive/](definitive/) (Phase 3), to be run once on or after 24 November 2026.**
 
 ## What is measured
 
@@ -60,6 +60,11 @@ python -m lag.scripts.collect_15m             # 15-minute bars for 2 Oct to 23 N
 python -m lag.scripts.collect_15m --report-only   # rewrite results/coverage_15m.md without downloading
 python -m lag.scripts.event_counts            # results/event_counts.md (no response computed)
 python -m lag.scripts.synthetic_summary       # results/phase1_synthetic.md: the seven synthetic checks with numbers
+python -m lag.scripts.null_check              # results/null_check.md: the two gates' false-positive rates on synthetic worlds
+python -m lag.scripts.null_investigation      # results/null_investigation.md: why the relabelling null runs hot (before Phase 3)
+python -m lag.scripts.run_pilot               # the pilot run -> results/cells.csv, curves, alignment, nulls/, run_meta.json, ledger rows
+python -m lag.scripts.render_results          # RESULTS.md and the charts in results/
+python -m lag.definitive.run                  # the definitive run, once, on or after 24 November 2026 (gated by the lock)
 ```
 
 **The 15-minute collector must be run at least every 8 weeks while the period is live** (weekly is
@@ -80,9 +85,9 @@ lost. Each run adds only bars not yet stored and never changes a stored bar.
 | `inference.py` | relabelling null, first response (Holm), placebo curves, bootstraps, BH |
 | `pipeline.py` | from events and ticks to the measures of a cell; alignment per index |
 | `synthetic.py` | synthetic ticks, bars and events for the tests |
-| `scripts/` | the commands above |
+| `scripts/` | the commands above; `run_measures.py` is the measurement shared by both runs |
+| `definitive/` | the pre-registered definitive run: `config.py` (frozen parameters), `run.py`, its results after Phase 4 |
 | `tests/` | synthetic-data tests |
-| `results/` | committed aggregate outputs (counts, coverage, checks); never raw data |
-| `ledger.csv` | append-only log of every run (from Phase 2) |
-
-The pilot run, the rendered results and the charts arrive in Phase 2.
+| `results/` | committed aggregate outputs (counts, coverage, checks, the pilot's cells and curves); never raw data |
+| `RESULTS.md` | the pilot's results, rendered from `results/` |
+| `ledger.csv` | append-only log of every run and cell |

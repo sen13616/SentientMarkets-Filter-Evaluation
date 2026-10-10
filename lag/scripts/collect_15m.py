@@ -1,6 +1,7 @@
 """Phase 0, step 4: collect 15-minute bars for the definitive period (2 October to 23 November 2026).
 
-yfinance serves 15-minute bars for about 60 days only, so this is run repeatedly while the period
+From 9 October 2026 (L18) the download includes pre- and post-market bars, flagged `regular = False`;
+regular-session bars are unchanged. yfinance serves 15-minute bars for about 60 days only, so this is run repeatedly while the period
 is live (weekly is enough). Each run downloads what yfinance still serves, keeps only bars from
 the period, adds the ones not yet stored to `$SM_DATA_DIR/lag/bars_15m.parquet`, records the run
 in `bars_15m_manifest.json` next to it, and rewrites `lag/results/coverage_15m.md`. Bars already
@@ -38,7 +39,7 @@ def main(report_only: bool = False) -> None:
     period = RUNS["definitive"]["sessions"]
     start, end = bars.collection_window(*period)
     print(f"collect_15m: {len(uni)} tickers, requesting {start} to {end} (exclusive)")
-    new = bars.download(uni, "15m", start, end)
+    new = bars.download(uni, "15m", start, end, prepost=True)          # extended hours too (L18)
     print(f"  {len(new):,} bars downloaded; filtering to the period and merging")
     stats = bars.merge_store(new, BARS_15M)
     print("  " + ", ".join(f"{k}={v}" for k, v in stats.items()))

@@ -69,6 +69,24 @@ def rp_text(r: pd.Series, group: str) -> str:
     return s
 
 
+def investigation_note() -> list[str]:
+    """Dated note beside the pre-pilot null rates once the five-seed investigation exists (10 October 2026).
+    It changes no number above; the pre-pilot rates stay as the ones known when the gates were decided."""
+    p = RESULTS / "null_investigation.json"
+    if not p.exists():
+        return []
+    inv = json.loads(p.read_text())
+    main_r = inv.get("main: walk + white", {})
+    if not main_r:
+        return []
+    return [f"> **Note added 10 October 2026.** The {NULL.get('relabel_rate', float('nan')):.1%} above is the rate of a "
+            f"single seed. Over five independent seeds ({main_r.get('n', 0):,} worlds in all) the same scenario gives "
+            f"{main_r.get('share05', float('nan')):.1%}, and the walk-only and white-noise-only scenarios 4.5% and 4.2%: the "
+            "pre-pilot figure was a seed fluctuation and the relabelling test is left as specified. Details in "
+            "[results/null_investigation.md](results/null_investigation.md) and DECISIONS.md (open item, closed). "
+            "No number in this document was changed; a rerun of the pre-pilot check with the current code reproduces it.", ""]
+
+
 def null_note() -> str:
     """The two gates' false-positive rates on synthetic no-response worlds, quoted next to every gate decision."""
     if not NULL:
@@ -253,6 +271,7 @@ def main() -> None:
           f"with no response, the relabelling condition alone passed {NULL.get('relabel_rate', float('nan')):.1%} of the "
           f"time (outside the 3.6% to 6.4% band agreed before the check) and the combined gate "
           f"{NULL.get('combined_rate', float('nan')):.1%}. Both rates are repeated next to every gate decision below.", "",
+          *investigation_note(),
           "## 5. Primary measures", "",
           cell_table(cells, list(PRIMARY_GROUPS), ["all"], PRIMARY_INDICES, with_bh=False), "",
           f"Gate decisions, with the null rates ({null_note()}):", ""]

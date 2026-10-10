@@ -51,6 +51,8 @@ All in [DECISIONS.md](DECISIONS.md): L1 to L13 before the Phase 0 counts, L14 (t
 
 **Gate (L17) and its null rates.** An index's timings are interpreted only if its relabelling p for M is below 0.05 and the date-bootstrap 95% interval for M lies above zero. On 1,000 synthetic worlds with no response, the relabelling condition alone passed 6.8% of the time (outside the 3.6% to 6.4% band agreed before the check) and the combined gate 4.8%. Both rates are repeated next to every gate decision below.
 
+> **Note added 10 October 2026.** The 6.8% above is the rate of a single seed. Over five independent seeds (5,000 worlds in all) the same scenario gives 4.4%, and the walk-only and white-noise-only scenarios 4.5% and 4.2%: the pre-pilot figure was a seed fluctuation and the relabelling test is left as specified. Details in [results/null_investigation.md](results/null_investigation.md) and DECISIONS.md (open item, closed). No number in this document was changed; a rerun of the pre-pilot check with the current code reproduces it.
+
 ## 5. Primary measures
 
 | cell | index | n | M (points) | p(M) | M interval | gate (L17) | T½ | T₉₀ | first response | Rₚ(T½) | corr. with price? |
